@@ -1,0 +1,30 @@
+2025-04-29 12:49:16,644: main: INFO: Logging is set up.
+2025-04-29 12:50:32,162: main: INFO: Logging is set up.
+2025-04-29 12:51:25,720: main: INFO: Logging is set up.
+2025-04-29 12:54:34,727: main: INFO: Logging is set up.
+2025-04-29 12:54:53,816: main: INFO: Logging is set up.
+2025-04-29 12:59:50,930: routers.colony: INFO: Reinitializing guest colony...
+2025-04-29 12:59:51,000: routers.colony: INFO: Guest colony initialized: id='guest' revision_id=None name='' ants=[] mapEntities=[] enemies=[] fruits=[] eggs=0 food=0.0 chitin=0.0 age=0 map=[[]] perkPurchased=[] initialized=False
+2025-04-29 13:00:00,912: routers.colony: INFO: Fetching colony with ID: guest
+2025-04-29 13:00:00,947: routers.colony: INFO: Fetching colony with ID: guest
+2025-04-29 13:05:44,354: routers.colony: WARN: Validation error while fetching guest colony: 1 validation error for Colony
+chitin
+  Field required [type=missing, input_value={'_id': 'guest', 'name': ...], 'initialized': False}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.10/v/missing
+2025-04-29 13:05:44,354: routers.colony: WARN: Deleting mismatched guest colony...
+2025-04-29 13:05:44,422: routers.colony: INFO: Guest colony initialized: id='guest' revision_id=None name='' ants=[] mapEntities=[] enemies=[] fruits=[] eggs=0 food=0.0 chitin=0.0 age=0 map=[[]] perkPurchased=[] initialized=False
+2025-04-29 13:05:44,422: database: INFO: Database initialized and guest profiles/colonies ensured.
+2025-04-29 13:05:53,208: routers.colony: INFO: Fetching colony with ID: d3f8c81f-56e0-4886-be4d-e4c35f85951c
+2025-04-29 13:05:53,425: routers.colony: INFO: Fetching colony with ID: d3f8c81f-56e0-4886-be4d-e4c35f85951c
+2025-04-29 13:05:57,568: routers.colony: INFO: Fetching colony with ID: d3f8c81f-56e0-4886-be4d-e4c35f85951c
+2025-04-29 13:05:57,608: routers.colony: INFO: Fetching colony with ID: d3f8c81f-56e0-4886-be4d-e4c35f85951c
+2025-04-29 13:06:12,990: routers.colony: INFO: Fetching colony with ID: d67dc7c6-d6fe-499a-bb11-0e291cd1e3d7
+2025-04-29 13:06:13,021: routers.colony: INFO: Fetching colony with ID: d67dc7c6-d6fe-499a-bb11-0e291cd1e3d7
+2025-04-29 13:06:22,244: routers.colony: INFO: Fetching colony with ID: d67dc7c6-d6fe-499a-bb11-0e291cd1e3d7
+2025-04-29 13:06:22,401: routers.colony: INFO: Fetching colony with ID: d67dc7c6-d6fe-499a-bb11-0e291cd1e3d7
+2025-04-29 13:06:25,658: routers.colony: INFO: Fetching colony with ID: d67dc7c6-d6fe-499a-bb11-0e291cd1e3d7
+2025-04-29 13:06:25,831: routers.colony: INFO: Fetching colony with ID: d67dc7c6-d6fe-499a-bb11-0e291cd1e3d7
+2025-04-29 13:06:50,450: routers.colony: INFO: Fetching colony with ID: d67dc7c6-d6fe-499a-bb11-0e291cd1e3d7
+2025-04-29 13:55:58,096: routers.colony: INFO: Reinitializing guest colony...
+2025-04-29 13:55:58,155: routers.colony: INFO: Guest colony initialized: id='guest' revision_id=None name='' ants=[] mapEntities=[] enemies=[] fruits=[] eggs=0 food=0.0 chitin=0.0 age=0 map=[[]] perkPurchased=[] initialized=False
+2025-04-29 13:55:58,156: database: INFO: Database initialized and guest profiles/colonies ensured.

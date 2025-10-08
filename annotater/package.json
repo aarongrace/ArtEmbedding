@@ -1,0 +1,15 @@
+{
+    "name": "my-fullstack-app",
+    "private": true,
+    "scripts": {
+        "start": "concurrently \"npm run start-react\" \"npm run start-backend\"",
+        "start-react": "cd frontend && npm start",
+        "start-backend": "cd backend && uvicorn main:app --reload",
+        "install-all": "npm install --prefix frontend && npm install --prefix backend"
+    },
+    "devDependencies": {
+        "concurrently": "^9.1.2"
+    },
+    "dependencies": {
+    }
+}

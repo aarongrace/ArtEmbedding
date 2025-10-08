@@ -1,0 +1,70 @@
+@import url('https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap');
+
+/* Navbar container */
+.App-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 2rem;
+  background-color: #fdf5e6; /* Light beige background */
+  border-bottom: 4px solid #d4a373; /* Soft brown border */
+  white-space: nowrap; /* Ensure the title stays on one line */
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+}
+
+.App-logo {
+  width: 50px;
+  height: 50px;
+  transition: transform 0.5s ease;
+  margin: 3px;
+  border-radius: 50%;
+}
+
+/* Navigation links container */
+.nav-links {
+  display: flex;
+  gap: 1.5rem; /* Space between links */
+}
+
+/* Individual link styling */
+.nav-link {
+  text-transform: uppercase; /* Uppercase text */
+  font-family: 'Patrick Hand', 'Comic Sans MS', cursive; /* Whimsical cartoony font */
+  font-size: 1.2rem;
+  text-decoration: none; /* Remove underline */
+  font-weight: bold;
+  transition: all 0.3s ease; /* Smooth hover transition */
+}
+
+.nav-link:hover {
+  color: #d4a373; /* Soft brown background on hover */
+}
+
+/* Icon links (e.g., CircleHelp) */
+.nav-link svg {
+  vertical-align: middle;
+  transition: transform 0.3s ease; /* Smooth scaling effect */
+}
+
+.nav-link:hover svg {
+  transform: scale(1.2); /* Slightly enlarge the icon on hover */
+}
+
+.logout-btn {
+  background-color: #dc2626;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  margin-left: 12px;
+  font-weight: bold;
+  transition: background-color 0.3s;
+}
+
+.logout-btn:hover {
+  background-color: #b91c1c;
+}

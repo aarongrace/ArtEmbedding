@@ -1,0 +1,189 @@
+/* Container for the login page */
+.login-container {
+  height: 100vh; /* Full viewport height */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #F6F0E0; /* Reddish beige background */
+  padding: 0px 60px 20px 60px;
+  border-radius: 50px;
+}
+
+/* Logo styling */
+.login-logo {
+  height: 35vh;
+  user-select: none; /* Prevent text selection */
+  pointer-events: none; /* Prevent dragging */
+}
+
+/* Buttons container */
+.login-buttons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2.5rem; /* Spacing between buttons */
+  margin-top: 1rem; /* Add spacing above buttons */
+}
+
+/* General button styling */
+.login-button {
+  padding: 0.75rem 1.5rem; /* Padding for buttons */
+  border: 3px solid #3f3f3f; /* Dark border */
+  border-radius: 0.5rem; /* Rounded corners */
+  color: #f5f5f5; /* Light text color */
+  font-size: 1rem; /* Button text size */
+  text-align: center;
+  text-decoration: none; /* Remove underline */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.3s ease; /* Smooth hover transition */
+}
+
+/* Play Now button */
+.login-button.sign-up {
+  background-color: #4caf50; /* Green background */
+}
+
+.login-button.sign-up:hover {
+  background-color: #388e3c; /* Darker green on hover */
+  border-color: #000; /* Black border on hover */
+}
+
+.login-button.guest {
+  background-color: #e53935; /* Red background */
+  gap: 0.5rem; /* Space between text and icon */
+}
+
+.login-button.guest:hover {
+  background-color: #b71c1c; /* Darker red on hover */
+  border-color: #000; /* Black border on hover */
+}
+
+.guest-text {
+  margin: 0;
+  line-height: 1; /* Align text vertically */
+}
+
+/* Styling for the log-in form */
+.log-in-form {
+  display: flex;
+  flex-direction: column; /* Stack inputs vertically */
+  gap: 1rem; /* Add spacing between inputs and button */
+  width: 100%; /* Full width of the container */
+}
+
+/* Styling for the input fields */
+.log-in-input {
+  padding: 0.75rem; /* Add padding inside the input */
+  border: 2px solid #3f3f3f; /* Dark border */
+  border-radius: 0.5rem; /* Rounded corners */
+  font-size: 1rem; /* Font size for input text */
+  width: 100%; /* Full width of the form */
+  box-sizing: border-box; /* Include padding and border in width */
+}
+
+/* Styling for the submit button */
+.log-in-submit {
+  padding: 0.75rem; /* Add padding inside the button */
+  background-color: #4c81af; /* Blue background */
+  border: 3px solid #3f3f3f; /* Dark border */
+  color: #fff; /* White text */
+  border-radius: 0.5rem; /* Rounded corners */
+  font-size: 1rem; /* Font size for button text */
+  cursor: pointer; /* Pointer cursor on hover */
+  transition: background-color 0.3s ease; /* Smooth hover transition */
+}
+
+.log-in-submit:hover {
+  background-color: #3a6d99; /* Darker blue on hover */
+}
+
+/* Container for the welcome page */
+.welcome-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #F6F0E0; /* Reddish beige background */
+  padding: 20px 60px 20px 60px;
+  border-radius: 50px;
+  margin-top: 60px;
+}
+
+/* Logo styling */
+.welcome-logo {
+  height: 35vh;
+  user-select: none; /* Prevent text selection */
+  pointer-events: none; /* Prevent dragging */
+}
+
+.disclaimer {
+  font-size: 0.8rem; 
+  color: #3f3f3f; 
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.disclaimer-link {
+  text-decoration: underline;
+  color: blue;
+  cursor: pointer;
+}
+
+.error-message {
+  color: red;
+  font-size: .8rem;
+  margin-top: 1rem;
+}
+
+/* Buttons container */
+.welcome-buttons {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  align-items: center;
+  margin-top: 1rem; /* Add spacing above buttons */
+}
+
+/* General button styling */
+.welcome-button {
+  padding: 0.75rem 1.5rem; /* Padding for buttons */
+  border: 3px solid #3f3f3f; /* Dark border */
+  border-radius: 0.5rem; /* Rounded corners */
+  color: #f5f5f5; /* Light text color */
+  font-size: 1rem; /* Button text size */
+  text-align: center;
+  text-decoration: none; /* Remove underline */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.3s ease; /* Smooth hover transition */
+}
+
+/* Sign Up button */
+.welcome-button.sign-up {
+  background-color: #4caf50; /* Green background */
+}
+
+.welcome-button.sign-up:hover {
+  background-color: #388e3c; /* Darker green on hover */
+  border-color: #000; /* Black border on hover */
+}
+
+.welcome-button.guest {
+  background-color: #e53935; /* Red background */
+  gap: 0.5rem; /* Space between text and icon */
+}
+
+.welcome-button.guest:hover {
+  background-color: #b71c1c; /* Darker red on hover */
+  border-color: #000; /* Black border on hover */
+  cursor: pointer;
+}
+
+.guest-text {
+  margin: 0;
+  line-height: 1; /* Align text vertically */
+}

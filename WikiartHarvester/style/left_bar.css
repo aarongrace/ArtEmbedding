@@ -1,0 +1,62 @@
+:root {
+    --button-text-color: #1f161e; /* Dark greenish-blue color for text */
+}
+
+.left-bar {
+    top: 49px;
+    height: calc(100% - 45px); /* Adjust the height to account for the top margin */
+    left: 0;
+    z-index: 3;
+    position: fixed;
+    background-color: #d7e8e9;
+    overflow-y: scroll;
+    justify-content: center;
+    text-align: center;
+    border-right: 2px solid #85a78f;
+    color: #506e66;
+}
+
+.left-bar-section-header {
+    margin: 1px;
+    font-weight: bold;
+}
+
+.left-bar-header {
+    margin: 2px;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.discussion-button {
+    height: 36px;
+    width: 56px;
+    font-size: 20px;
+    padding: 2px;
+    margin: 3px;
+    color: var(--button-text-color) !important; /* Apply the shared text color */
+}
+
+.essay-button {
+    margin: 2px;
+    color: var(--button-text-color) !important; /* Apply the shared text color */
+}
+
+.comment-box {
+    border: 1px solid #5a5d66;
+    padding: 1px;
+    margin: 1px;
+}
+
+.comment-box textarea {
+    width: 70%;
+    height: 12px;
+    padding: 2px;
+    overflow: hidden;
+    resize: none;
+    font-size: 12px;
+    margin-bottom: 3px;
+}
+
+.comment-box button {
+    height: 20px;
+}

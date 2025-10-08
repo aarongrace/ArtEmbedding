@@ -1,0 +1,97 @@
+.profile-container {
+  background-color: #f7f3e9; /* Light beige to resemble an ant colony environment */
+  border: 2px solid #d4a373; /* Earthy brown border */
+  border-radius: 10px;
+  padding: 20px;
+  width: 400px;
+  margin: 50px auto;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  font-family: 'Arial', sans-serif;
+}
+
+.profile-header {
+  text-align: center;
+  color: #6b4226; /* Dark brown for the header */
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+label {
+  font-size: 14px;
+  color: #6b4226;
+  margin-bottom: 5px;
+}
+
+.profile-input {
+  padding: 10px;
+  border: 1px solid #d4a373;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+input:focus {
+  outline: none;
+  border-color: #a0522d; /* Darker brown when focused */
+  box-shadow: 0 0 5px rgba(160, 82, 45, 0.5);
+}
+
+.profile-button {
+  background-color: #6b4226;
+  color: #fff;
+  padding: 10px;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.profile-button:hover {
+  background-color: #a0522d; /* Darker brown on hover */
+}
+
+.profile-button:active {
+  background-color: #5a2e1b; /* Even darker brown when clicked */
+}
+
+/* Container for additional actions */
+.profile-actions {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/* Action buttons styling */
+.profile-action-button {
+  padding: 0.75rem 1.5rem;
+  background-color: #4caf50; /* Green background */
+  color: #fff; /* White text */
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  flex: 1; /* Make buttons equal width */
+  text-align: center;
+}
+
+.profile-action-button:hover {
+  background-color: #388e3c; /* Darker green on hover */
+}
+
+.profile-action-button:disabled {
+  background-color: #ccc; /* Gray background for disabled button */
+  cursor: not-allowed;
+}

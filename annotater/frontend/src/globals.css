@@ -1,0 +1,69 @@
+/* Reset default margins and paddings */
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+    background-size: 50%;
+
+    background-color: #ffffff;
+
+
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box; /* Include padding and borders in element dimensions */
+}
+
+body {
+    color: white; /* Default text color */
+    font-family: sans-serif; /* Default font family */
+    margin: 0; /* Remove default body margin */
+    padding: 0; /* Remove default body padding */
+}
+
+/* Header styling */
+.App-header {
+    display: flex;
+    justify-content: space-between; /* Space between title and links */
+    align-items: center; /* Align items vertically */
+    padding: 3px 20px; /* Add padding to the sides */
+    color: white;
+}
+
+/* Game title styling */
+.game-title {
+    font-size: 2em;
+    margin: 0;
+}
+
+/* Navigation links container */
+.nav-links {
+    display: flex;
+    gap: 15px; /* Add spacing between links */
+}
+
+/* Individual link styling */
+.nav-link {
+    color: white;
+    text-decoration: none;
+    font-size: 1.2em;
+    transition: color 0.3s ease;
+}
+
+.nav-link:hover {
+    color: #d4a373; /* Earthy brown color on hover */
+}
+
+/* Main content area */
+.App-main {
+    /* height: calc(100vh - 80px); */
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    overflow-y: auto; /* Allow scrolling only for the main content */
+    
+}

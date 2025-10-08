@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WikiArt Harvester</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <button id="downloadImage">Download Image on Page</button>
+  <button id="processArtist">Process Artist</button>
+  <button id="processMovementPage">Add All Artists on Movement Page to List of Target Artists</button>
+  <button id="startDownloadLoop">Start Download Loop Based on List of Target Artists</button>
+  <button id="stopDownloadLoop">Stop Download Loop</button>
+  <hr>
+  <button id="showData">Show Stored Data</button>
+  <button id="downloadData">Download All Stored Data as JSON</button>
+  <button id="downloadPaintingData">Download Paintings Metada as JSON</button>
+  <input type="file" id="upload-json" accept=".json" />
+  <button id="upload-btn">Overwrite Storage</button>
+  <button id="deleteAll">Delete All Data</button>
+  <button id="addTest">Add Test Painting</button>
+  <div id="status"></div>
+
+<<<<<<< HEAD
+
+  <script src="storage.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
+=======
+    <h1>ICON SpeedGrader Helper</h1>
+    <div id="status"></div>
+    <div id="assignment-info" class="assignment-info">
+        <h2> Current Assignment: </h2>
+        <p><strong>Assignment ID:</strong> <span id="assignment-id">Loading...</span></p>
+        <p><strong>Assignment Name:</strong> <span id="assignment-name">Loading...</span></p>
+    </div>
+    <button id="designate-button" style="display: none;">Designate current assignment</button>
+    <div id="designate-div" style="display: none;">
+      <select id="select-assignment"></select>
+      <div>
+        <button id="overwrite-button">Overwrite existing ID</button>
+        <button id="add-button">Append current ID</button>
+      </div>
+    </div>
+
+    <div id="tabs">
+      <button id="group_icon_tabs">Group ICON Tabs</button>
+      <button id="group_all_tabs">Group All Tabs</button>
+      <ul></ul>
+    </div>
+
+    <script src="./scripts/popup.js" type="module"></script>
+    <script src="./scripts/groupTabs.js" type="module"></script>
+  </body>
+</html>
+>>>>>>> a1bd4fbcd15e587319f33b06d56a3eb70e620a4c

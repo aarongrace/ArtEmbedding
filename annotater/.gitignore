@@ -1,0 +1,10 @@
+node_modules/
+frontend/node_modules/
+.env
+*/virt
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+/logs
