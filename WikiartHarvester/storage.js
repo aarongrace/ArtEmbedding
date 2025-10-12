@@ -14,7 +14,7 @@ async function initIdPool() {
 
     // Build pool of string IDs from "000000" to "30000"
     const availableIds = [];
-    for (let i = 1; i <= 30000; i++) {
+    for (let i = 21061; i <= 30000; i++) {
         const idStr = String(i).padStart(6, "0");
         if (!usedIds.has(idStr)) {
             availableIds.push(idStr);

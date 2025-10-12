@@ -1,5 +1,4 @@
 {
-<<<<<<< HEAD
   "manifest_version": 3,
   "name": "WikiArt Harvester",
   "version": "1.1",
@@ -47,40 +46,3 @@
     }
   ]
 }
-=======
-    "manifest_version": 3,
-    "name": "Aaron Grace's ICON SpeedGrader Helper",
-    "description": "Enhances ICON SpeedGrader with direct input of grades, eyword highlighting, automatic centering on essays, and discussion word count. \nDeveloped for Mona Lisa to Modernism",
-    "version": "1.0",
-    "action": {
-        "default_popup": "popup.html",
-        "default_icon": "images/icon.png"
-    },
-    "icons": {
-        "16": "images/icon-16.png",
-        "32": "images/icon-32.png",
-        "48": "images/icon-48.png",
-        "128": "images/icon-128.png"
-    },
-    "content_scripts": [
-        {
-            "css": [
-                "style/keywords.css",
-                "style/left_bar.css"
-            ],
-            "js": [
-                "scripts/default_config.js",
-                "scripts/KeywordsPanel.js",
-                "scripts/IFrameEditor.js",
-                "scripts/LeftBar.js",
-                "scripts/content.js"
-            ],
-            "matches": [
-                "https://uiowa.instructure.com/courses/261692/gradebook/speed_grader?*"
-            ]
-        }
-    ],
-    "permissions":["activeTab","tabGroups","storage"],
-    "host_permissions":["*://*/*"]
-}
->>>>>>> a1bd4fbcd15e587319f33b06d56a3eb70e620a4c
