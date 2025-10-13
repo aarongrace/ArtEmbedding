@@ -1,39 +1,58 @@
 #!/usr/bin/env python
 # coding: utf-8
+# ---
+# jupyter:
+#   jupytext:
+#     cell_metadata_filter: -all
+#     formats: ipynb,py:percent
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.17.3
+#   kernelspec:
+#     display_name: Python (my_venv)
+#     language: python
+#     name: my_venv
+# ---
 
-# In[1]:
-
-
+# %%
 MOVEMENT_DIM = 5
 GENRE_DIM = 5
 STYLE_DIM = 6
 
 
-# In[2]:
+# %%
 
 
 # get the images
 from PIL import Image
 import os, json, torch
 
-
-try:  # Local path to images
+MAIN_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+VISION_DEVICE = MAIN_DEVICE
+try:  # Check if running in Colab
     from google.colab import drive
     IN_COLAB = True
-    print("Running in Google Colab")
+    print("running in Google Colab")
     mount_path = '/content/drive'
-    # Mount only if not already mounted
     if not os.path.exists(mount_path):
         drive.mount(mount_path)
     imgs_directory_path = '/content/drive/MyDrive/ArtEmbed'
     pretraining_metadata = '/content/drive/MyDrive/ArtEmbed/wikiart_metadata_with_pretraining_groundtruth.json'
 
-except:
+except ImportError:  # Not Colab
     from pathlib import Path
     IN_COLAB = False
-    print("Not running in Google Colab")
 
-    BASE_DIR = Path(__file__).resolve().parent  # folder where embed_model.py lives
+    try:
+        BASE_DIR = Path(__file__).resolve().parent  # works in scripts
+        print("running from laptop, probably")
+        VISION_DEVICE = "cpu" # not even GPU mem on laptop
+    except NameError:
+        BASE_DIR = Path.cwd()  # fallback for notebooks
+        print("running from IDAS, probably")
+
     imgs_directory_path = BASE_DIR / "paintings"
     pretraining_metadata = BASE_DIR / "metadata" / "wikiart_metadata_with_pretraining_groundtruth.json"
 
@@ -64,18 +83,13 @@ def load_pretraining_metadata():
 
 
 
-# In[3]:
-
-
-# Install dependencies
-# !pip install transformers accelerate sentencepiece
+# %%
 
 # --- Import libraries ---
 from transformers import Blip2Processor, Blip2ForConditionalGeneration
 import torch
 
 # --- Load BLIP-2 model and processor ---
-device = "cuda" if torch.cuda.is_available() else "cpu"
 model_name = "Salesforce/blip2-flan-t5-xl"
 local_model_path =  BASE_DIR / "blip2_model"
 
@@ -102,7 +116,7 @@ for param in blip2.vision_model.parameters():
     param.requires_grad = False
 
 
-# In[4]:
+# %%
 
 
 from torch.utils.data import DataLoader, TensorDataset
@@ -139,7 +153,7 @@ def create_dataloader(image_list, target_list, processor, device, batch_size=4, 
 
 
 
-# In[5]:
+# %%
 
 
 def print_gpu_mem(prefix="GPU"):
@@ -151,7 +165,7 @@ def print_gpu_mem(prefix="GPU"):
         print("CUDA not available")
 
 
-# In[6]:
+# %%
 
 
 from torch import nn
@@ -167,10 +181,6 @@ class BLIP2MultiHeadRegression(nn.Module):
                  train_vision=False):
         super().__init__()
 
-        # --- Devices ---
-        self.main_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.vision_device = torch.device("cpu")  # keep heavy vision encoder on CPU
-
         # --- Core model ---
         self.blip2 = blip2_model
         self.use_style_head = use_style_head
@@ -182,12 +192,12 @@ class BLIP2MultiHeadRegression(nn.Module):
             param.requires_grad = train_qformer
 
         # --- Move modules to appropriate devices ---
-        self.blip2.vision_model.to(self.vision_device)
-        self.blip2.qformer.to(self.main_device)
+        self.blip2.vision_model.to(VISION_DEVICE)
+        self.blip2.qformer.to(MAIN_DEVICE)
 
         # query_tokens is an nn.Parameter → rewrap properly after moving
         self.blip2.query_tokens = nn.Parameter(
-            self.blip2.query_tokens.to(self.main_device)
+            self.blip2.query_tokens.to(MAIN_DEVICE)
         )
 
         # --- Config info ---
@@ -199,8 +209,6 @@ class BLIP2MultiHeadRegression(nn.Module):
         print(f"Hidden size: {hidden_size}")
         print(f"Feature dim: {feature_dim}")
         print(f"Use style head: {use_style_head}")
-        print(f"Vision model device: {self.vision_device}")
-        print(f"Q-Former device: {self.main_device}")
 
         # --- Shared feature extraction ---
         self.shared_features = nn.Sequential(
@@ -208,7 +216,7 @@ class BLIP2MultiHeadRegression(nn.Module):
             nn.BatchNorm1d(512),
             nn.ReLU(),
             nn.Dropout(0.2)
-        ).to(self.main_device)
+        ).to(MAIN_DEVICE)
 
         # --- Movement and Genre heads ---
         self.movement_head = nn.Sequential(
@@ -216,14 +224,14 @@ class BLIP2MultiHeadRegression(nn.Module):
             nn.ReLU(),
             nn.Dropout(0.1),
             nn.Linear(256, MOVEMENT_DIM)
-        ).to(self.main_device)
+        ).to(MAIN_DEVICE)
 
         self.genre_head = nn.Sequential(
             nn.Linear(512, 256),
             nn.ReLU(),
             nn.Dropout(0.1),
             nn.Linear(256, GENRE_DIM)
-        ).to(self.main_device)
+        ).to(MAIN_DEVICE)
 
         # --- Style head (always defined, but only used if enabled) ---
         self.style_head = nn.Sequential(
@@ -231,7 +239,7 @@ class BLIP2MultiHeadRegression(nn.Module):
             nn.ReLU(),
             nn.Dropout(0.1),
             nn.Linear(256, STYLE_DIM)
-        ).to(self.main_device)
+        ).to(MAIN_DEVICE)
 
     def forward(self, images, return_features=False):
         """
@@ -244,11 +252,9 @@ class BLIP2MultiHeadRegression(nn.Module):
         Returns:
             dict with keys: 'movement', 'genre', 'style', 'combined', optionally 'features'
         """
-        device = next(self.shared_features.parameters()).device  # GPU for rest of model
 
         # --- Vision encoding ---
-        vision_device = next(self.blip2.vision_model.parameters()).device
-        images_vision = images.to(vision_device)
+        images_vision = images.to(VISION_DEVICE)
 
         if self.training and next(self.blip2.vision_model.parameters()).requires_grad:
             vision_outputs = self.blip2.vision_model(pixel_values=images_vision)
@@ -256,11 +262,11 @@ class BLIP2MultiHeadRegression(nn.Module):
             with torch.no_grad():
                 vision_outputs = self.blip2.vision_model(pixel_values=images_vision)
 
-        image_embeds = vision_outputs.last_hidden_state.to(device)  # move to GPU
+        image_embeds = vision_outputs.last_hidden_state.to(MAIN_DEVICE)  # move to GPU
 
         # --- Q-Former processing ---
-        query_tokens = self.blip2.query_tokens.expand(images.shape[0], -1, -1).to(device)
-        image_attention_mask = torch.ones(image_embeds.shape[:-1], dtype=torch.long).to(device)
+        query_tokens = self.blip2.query_tokens.expand(images.shape[0], -1, -1).to(MAIN_DEVICE)
+        image_attention_mask = torch.ones(image_embeds.shape[:-1], dtype=torch.long).to(MAIN_DEVICE)
 
         query_outputs = self.blip2.qformer(
             query_embeds=query_tokens,
@@ -344,7 +350,7 @@ class WeightedMultiHeadLoss(nn.Module):
         return total_loss, loss_dict
 
 
-# In[7]:
+# %%
 
 
 import time
@@ -408,7 +414,7 @@ def test_epoch(model, dataloader, criterion, device):
     return avg_loss
 
 
-# In[8]:
+# %%
 
 
 def train_model(model, train_loader, val_loader, optimizer, criterion, device, num_epochs=10, save_path=None):
@@ -439,7 +445,7 @@ def train_model(model, train_loader, val_loader, optimizer, criterion, device, n
     return history
 
 
-# In[9]:
+# %%
 
 
 import random
@@ -460,15 +466,15 @@ def split_train_test(image_list, targets, test_percentage=0.1):
     train_targets = [tgt for idx, tgt in enumerate(targets) if idx not in test_indices]
 
     train_loader = create_dataloader(
-        train_images, train_targets, processor, device, batch_size=16, shuffle=True
+        train_images, train_targets, processor, MAIN_DEVICE, batch_size=16, shuffle=True
     )
     test_loader = create_dataloader(
-        test_images, test_targets, processor, device, batch_size=32, shuffle=False
+        test_images, test_targets, processor, MAIN_DEVICE, batch_size=32, shuffle=False
     )
     return train_loader, test_loader
 
 
-# In[10]:
+# %%
 
 
 def pretrain_model():
@@ -486,19 +492,19 @@ def pretrain_model():
         use_style_head=False, train_qformer=False, train_vision=False
     )
     pretrain_criterion = WeightedMultiHeadLoss( movement_weight=1.0, genre_weight=0.7,
-        use_style=False,).to(device)
+        use_style=False,).to(MAIN_DEVICE)
     optimizer = torch.optim.AdamW(pretrain_model.parameters(), lr=1e-4)
 
 
     train_loader, test_loader = split_train_test(image_list, targets, test_percentage=0.1)
     save_dir = "./checkpoints"
     history = train_model(pretrain_model, train_loader, test_loader, optimizer, pretrain_criterion,
-        device, num_epochs=1, save_path=save_dir
+        MAIN_DEVICE, num_epochs=1, save_path=save_dir
     )
 # pretrain_model()
 
 
-# In[ ]:
+# %%
 
 
 import os
@@ -592,15 +598,15 @@ def backward_single_image(image, target, lr=1e-5):
     Perform a single training step on one image.
     """
     model, processor = get_model_and_processor()
-    criterion = WeightedMultiHeadLoss(movement_weight=1.0, genre_weight=1.0, use_style=True).to(device)
+    criterion = WeightedMultiHeadLoss(movement_weight=1.0, genre_weight=1.0, use_style=True).to(MAIN_DEVICE)
 
     augmented_images, augmented_targets = augment_annotated_images([image], [target])
     print(f"Augmented to {len(augmented_images)} images for training")
     
 
     model.train()
-    inputs = processor(images=augmented_images, return_tensors="pt").pixel_values.to(device)
-    target_tensor = torch.tensor(augmented_targets, dtype=torch.float32).to(device)
+    inputs = processor(images=augmented_images, return_tensors="pt").pixel_values.to(MAIN_DEVICE)
+    target_tensor = torch.tensor(augmented_targets, dtype=torch.float32).to(MAIN_DEVICE)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
     optimizer.zero_grad()
