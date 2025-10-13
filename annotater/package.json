@@ -4,7 +4,7 @@
     "scripts": {
         "start": "concurrently \"npm run start-react\" \"npm run start-backend\"",
         "start-react": "cd frontend && npm start",
-        "start-backend": "cd backend && uvicorn main:app --reload",
+        "start-backend": "cd backend && uvicorn main:app",
         "install-all": "npm install --prefix frontend && npm install --prefix backend"
     },
     "devDependencies": {

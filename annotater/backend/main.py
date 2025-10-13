@@ -12,6 +12,10 @@ BACKEND_DIR = Path(__file__).resolve().parent
 if str(BACKEND_DIR) not in sys.path:
     sys.path.append(str(BACKEND_DIR))
 
+ROOT_DIR = Path(__file__).resolve().parents[2]  # 2 levels above
+if ROOT_DIR not in sys.path:
+    sys.path.append(str(ROOT_DIR))
+
 from model_router import model_router
 from model_services import PAINTINGS_DIR
 
@@ -24,8 +28,22 @@ from model_services import PAINTINGS_DIR
 # logger = logging.getLogger(__name__)
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    from model_services import ensure_user_state, USER_NAME
+    from embed_model import get_model_and_processor
+    # --- Startup code ---
+    ensure_user_state(USER_NAME)   # Ensure default user exists
+    get_model_and_processor()      # Preload model
+    print(f"Startup complete: user {USER_NAME} ensured and model loaded.")
+    
+    yield  # Everything after this is shutdown code
 
-app = FastAPI(title="Art Embeddings Backend", version="0.1.0")
+    # --- Optional shutdown code ---
+    print("Shutdown complete.")
+
+
+app = FastAPI(title="Art Embeddings Backend", version="0.1.0", lifespan=lifespan)
 
 app.mount("/paintings", StaticFiles(directory=PAINTINGS_DIR, html=True), name="paintings")
 
@@ -38,6 +56,16 @@ app.add_middleware(
 )
 
 app.include_router(model_router, prefix="/model")
+
+
+
+# --- Startup event ---
+@app.on_event("startup")
+async def startup_event():
+    # Ensure default user exists
+    ensure_user_state(USER_NAME)
+    # You could also preload the model here if desired
+    print(f"Startup complete: ensured user {USER_NAME} exists.")
 
 @app.get("/")
 async def welcome() -> dict:

@@ -1,0 +1,11 @@
+# Local Hugging Face models
+/blip2_model/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# OS files
+.DS_Store
+Thumbs.db

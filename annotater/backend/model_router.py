@@ -2,7 +2,6 @@ from pydantic import BaseModel, conlist
 from typing import Dict, List
 from fastapi import APIRouter
 
-from model import get_random_image, forward_pass, backprop
 from model_services import *
 
 from pydantic import BaseModel, conlist
