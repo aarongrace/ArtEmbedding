@@ -8,7 +8,7 @@ from pydantic import BaseModel, conlist
 from typing import List
 
 
-
+from model_cache import get_cache
 
 class PaintingData(BaseModel):
     id: str
@@ -32,12 +32,10 @@ class GroundTruthLabel(BaseModel):
 model_router = APIRouter()
 @model_router.get("/painting", response_model=PaintingData)
 async def get_painting_with_forward():
-    image_id = get_random_image_id()
-    print(f"Selected random image ID: {image_id}")
+    cache = get_cache()
+    image_id, predictions = cache.get_embedding()
     image_entry = get_metadata_by_id(image_id)
     image_url_mounted = get_image_path(image_id, local=False)
-
-    predictions = forward_pass(image_id)
     painting_data = PaintingData(
         id=image_id,
         title=image_entry.get("title", "Unknown Title"),

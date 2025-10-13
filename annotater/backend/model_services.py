@@ -137,25 +137,37 @@ def get_64_encoded_image(image_id: str) -> str:
         encoded_string = base64.b64encode(img_file.read()).decode('utf-8')
     return encoded_string
 
-def get_random_image_id():
+
+def get_random_image_id(num: int = 1, exclude: list = []):
+    """
+    Get random image ID(s) that haven't been seen yet.
+    
+    Args:
+        num: Number of random IDs to return (default: 1)
+        exclude: List of image IDs to exclude from selection (default: [])
+        
+    Returns:
+        - If num == 1: returns a single image_id string
+        - If num > 1: returns a list of image_id strings
+    """
     ids_in_folder = [p.stem.split("_")[0] for p in all_image_paths]
     seen_list = get_seen_list()
-    possible_ids = [list(set(ids_in_folder) - set(seen_list))][0]
-    # print(f"Possible IDs after filtering seen: {possible_ids}")
-    random_index =  random.randint(0, len(possible_ids) - 1)
-    return possible_ids[random_index]
-
-
-# todo implement a queue so that we can get up to 10 forward pass results cached
+    possible_ids = list(set(ids_in_folder) - set(seen_list) - set(exclude))
+    
+    if not possible_ids:
+        raise ValueError("No unseen images available")
+    
+    if num == 1:
+        random_index = random.randint(0, len(possible_ids) - 1)
+        return possible_ids[random_index]
+    else:
+        # Return multiple IDs
+        num_to_sample = min(num, len(possible_ids))
+        return random.sample(possible_ids, num_to_sample)
+    
+    
 # perhaps implement a system to show how many have been
-from embed_model import forward_single_image, backward_single_image
-# Forward pass using notebook code
-def forward_pass(image_id: str):
-    image = load_PIL_image(image_id)
-    vector = forward_single_image(image)
-    add_to_seen_list(image_id)
-    return vector
-
+from embed_model import backward_single_image
 def backprop(image_id: str, vector: list):
     image = load_PIL_image(image_id)
     backward_single_image(image, vector)

@@ -18,6 +18,7 @@ if ROOT_DIR not in sys.path:
 
 from model_router import model_router
 from model_services import PAINTINGS_DIR
+from model_cache import get_cache
 
 
 # import logging
@@ -36,6 +37,7 @@ async def lifespan(app: FastAPI):
     ensure_user_state(USER_NAME)   # Ensure default user exists
     get_model_and_processor()      # Preload model
     print(f"Startup complete: user {USER_NAME} ensured and model loaded.")
+    get_cache() # Initialize cache
     
     yield  # Everything after this is shutdown code
 

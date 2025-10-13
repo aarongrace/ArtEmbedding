@@ -573,17 +573,19 @@ def get_model_and_processor():
         print(f"Model and processor ready")
     return _model, _processor
 
-def forward_single_image(image):
-    """
-    Forward pass for a single image.
-    """
+def forward_images(images):
     model, processor = get_model_and_processor()
     model.eval()
-    inputs = processor(images=image, return_tensors="pt").pixel_values
+
+    # Process all images as a batch
+    inputs = processor(images=images, return_tensors="pt").pixel_values
+
     with torch.no_grad():
         outputs = model(inputs)
-    print(f"Forward pass completed on device:")
-    return outputs["combined"].squeeze(0).cpu().tolist()
+
+    embeddings = outputs["combined"].cpu().tolist()
+    print(f"Forward pass completed on {len(images)} images")
+    return embeddings
 
 def backward_single_image(image, target, lr=1e-5):
     """
