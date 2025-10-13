@@ -5,58 +5,40 @@ from PIL import Image
 
 import matplotlib.pyplot as plt
             
-            
-def augment_images_for_pretraining(image_array, image_ids, pretraining_metadata):
+
+def augment_batch_paths(image_paths, targets, processor):
     """
-    Augments images by adding horizontally flipped versions.
+    Load images, create flipped versions, and return pixel values.
     
     Args:
-        image_array: List of PIL Image objects
-        image_ids: List of image IDs (e.g., ['000001', '000002', ...])
-        pretraining_metadata: Dictionary with image metadata including pretraining_groundtruth
-    
+        image_paths: List of file paths to images
+        targets: List of target vectors
+        processor: BLIP2 processor
+        
     Returns:
-        augmented_images: List of PIL Images (original + flipped for each)
-        augmented_image_ids: List of image IDs (duplicated for original + flipped)
-        augmented_targets: Numpy array of target vectors (duplicated for original + flipped)
+        pixel_values: Tensor of shape [batch_size*2, 3, H, W]
+        doubled_targets: List with doubled targets
     """
-    augmented_images = []
-    augmented_image_ids = []
-    augmented_targets = []
+    images = []
+    doubled_targets = []
     
-    for img, img_id in zip(image_array, image_ids):
-        metadata = pretraining_metadata.get(img_id, None)
-        if metadata is not None:
-            target = metadata.get('pretraining_groundtruth', None)
-            if target is not None:
-                # Add original image, id, and target
-                augmented_images.append(img)
-                augmented_image_ids.append(img_id)
-                augmented_targets.append(target)
-                
-                # Create flipped image
-                flipped_img = img.transpose(Image.FLIP_LEFT_RIGHT)
-                
-                # Add flipped image, same id, and same target
-                augmented_images.append(flipped_img)
-                augmented_image_ids.append(img_id)
-                augmented_targets.append(target)
-            else:
-                print(f"Warning: No pretraining_groundtruth for image {img_id}")
-        else:
-            print(f"Warning: No metadata found for image {img_id}")
+    for img_path, target in zip(image_paths, targets):
+        # Load image
+        img = Image.open(img_path).convert("RGB")
+        
+        # Add original
+        images.append(img)
+        doubled_targets.append(target)
+        
+        # Add flipped
+        flipped_img = ImageOps.mirror(img)
+        images.append(flipped_img)
+        doubled_targets.append(target)
     
-    # Convert targets to numpy array
-    augmented_targets = np.array(augmented_targets, dtype=np.float32)
+    # Process all images at once
+    pixel_values = processor(images=images, return_tensors="pt").pixel_values
     
-    print(f"Augmentation complete:")
-    print(f"  Original images: {len(image_array)}")
-    print(f"  Augmented images: {len(augmented_images)}")
-    print(f"  Augmented image_ids: {len(augmented_image_ids)}")
-    print(f"  Target shape: {augmented_targets.shape}")
-    
-    return augmented_images, augmented_image_ids, augmented_targets
-
+    return pixel_values, doubled_targets
 
 def augment_annotated_images(image_array, targets):
     """
