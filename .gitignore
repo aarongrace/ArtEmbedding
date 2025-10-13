@@ -6,6 +6,7 @@ __pycache__/
 *.py[cod]
 *.pyo
 
+venv/
 # OS files
 .DS_Store
 Thumbs.db
