@@ -139,11 +139,11 @@ const Dashboard: React.FC = () => {
             <div className="preview-info">
 
               <h2 className="painting-title">{currentPainting.title || "No Image Loaded"}</h2>
-              <p className="painting-artist">{currentPainting.artist}</p>
-              <p className="painting-year">{currentPainting.year}</p>
-              <p className="painting-genres">{currentPainting.genre.join(", ")}</p>
-              <p className="painting-movements">{currentPainting.movement.join(", ")}</p>
-              <p className="painting-tags">{currentPainting.tags.join(", ")}</p>
+              <p className="painting-artist">Artist: <strong>{currentPainting.artist}</strong></p>
+              <p className="painting-year">Year: <strong>{currentPainting.year}</strong></p>
+              <p className="painting-genres">Genres: <strong>{currentPainting.genre.map(genre => genre.charAt(0).toUpperCase() + genre.slice(1)).join(", ")}</strong></p>
+              <p className="painting-movements">Styles: <strong>{currentPainting.movement.map(style => style.charAt(0).toUpperCase() + style.slice(1)).join(", ")}</strong></p>
+              <p className="painting-tags">Tags: <strong>{currentPainting.tags.join(", ")}</strong></p>
             </div>
           </div>
         </div>
