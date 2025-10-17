@@ -11,16 +11,16 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.17.3
 #   kernelspec:
-#     display_name: ArtEmbedding-venv
+#     display_name: Python 3
 #     language: python
-#     name: artembedding-venv
+#     name: python3
 # ---
 
 # %%
 MOVEMENT_DIM = 6
-GENRE_DIM = 5
+GENRE_DIM = 6
 STYLE_DIM = 6
-PRETRAINING = False
+PRETRAINING = True
 
 
 # %%
@@ -35,6 +35,7 @@ try:  # Check if running in Colab
     BASE_DIR = Path(__file__).resolve().parent  # works in scripts
     print("running from laptop, probably")
     VISION_DEVICE = "cpu" # not even GPU mem on laptop
+    PRETRAINING = False # we are not doing pretraining rn
 except NameError:
     BASE_DIR = Path.cwd()  # fallback for notebooks
     print("running from IDAS, probably")
@@ -77,9 +78,9 @@ def load_model_from_latest(model):
     # Load Q-Former if it was saved
     if "qformer" in state_dict:
         model.blip2.qformer.load_state_dict(state_dict["qformer"])
-        print("✓ Loaded Q-Former weights")
+        print(" Loaded Q-Former weights")
     
-    print(f"✓ Loaded weights from {latest_check_point}")
+    print(f" Loaded weights from {latest_check_point}")
 
 # %%
 
@@ -265,7 +266,7 @@ def create_train_test_loaders(
         if batch_idx >= 1:
             break
     
-    print("\n✓ DataLoader verification complete!")
+    print("\n DataLoader verification complete!")
     print("="*80)
     
     return train_loader, test_loader
@@ -369,18 +370,7 @@ class BLIP2MultiHeadRegression(nn.Module):
             nn.Linear(256, STYLE_DIM)
         ).to(MAIN_DEVICE)
 
-    def forward(self, images, return_features=False):
-        """
-        Forward pass with optional CPU/GPU split for vision model.
-
-        Args:
-            images: [batch_size, 3, H, W]
-            return_features: If True, also return shared features
-
-        Returns:
-            dict with keys: 'movement', 'genre', 'style', 'combined', optionally 'features'
-        """
-
+    def forward(self, images):
         # --- Vision encoding ---
         images_vision = images.to(VISION_DEVICE)
 
@@ -419,12 +409,7 @@ class BLIP2MultiHeadRegression(nn.Module):
             'movement': movement_scores,
             'genre': genre_scores,
             'style': style_scores,
-            'combined': torch.cat([movement_scores, genre_scores, style_scores], dim=1)
         }
-
-        if return_features:
-            outputs['features'] = shared_features
-
         return outputs
 
 
@@ -436,14 +421,14 @@ class WeightedMultiHeadLoss(nn.Module):
         self.style_weight = style_weight
         self.use_style = use_style
 
-        # BCE loss for binary targets
-        self.bce = nn.BCEWithLogitsLoss(reduction='none')
+        # MSE loss for continuous targets
+        self.mse = nn.MSELoss(reduction='none')
 
     def forward(self, predictions, targets, confidences=None):
         """
         Args:
-            predictions: dict with 'movement', 'genre', 'style' (raw logits)
-            targets: tensor [batch, total_dim] (binary targets 0 or 1)
+            predictions: dict with 'movement', 'genre', 'style' (raw outputs)
+            targets: tensor [batch, total_dim] (target values)
             confidences: dict with confidence scores (optional)
         """
         # Split targets by head dimensions
@@ -451,13 +436,13 @@ class WeightedMultiHeadLoss(nn.Module):
         genre_target    = targets[:, MOVEMENT_DIM : MOVEMENT_DIM + GENRE_DIM]
 
         # --- Movement loss ---
-        movement_loss = self.bce(predictions['movement'], movement_target)
+        movement_loss = self.mse(predictions['movement'], movement_target)
         if confidences is not None and 'movement' in confidences:
             movement_loss = movement_loss * confidences['movement']
         movement_loss = movement_loss.mean() * self.movement_weight
 
         # --- Genre loss ---
-        genre_loss = self.bce(predictions['genre'], genre_target)
+        genre_loss = self.mse(predictions['genre'], genre_target)
         if confidences is not None and 'genre' in confidences:
             genre_loss = genre_loss * confidences['genre']
         genre_loss = genre_loss.mean() * self.genre_weight
@@ -469,7 +454,7 @@ class WeightedMultiHeadLoss(nn.Module):
         # --- Style loss (optional) ---
         if self.use_style:
             style_target = targets[:, MOVEMENT_DIM + GENRE_DIM :]
-            style_loss = self.bce(predictions['style'], style_target)
+            style_loss = self.mse(predictions['style'], style_target)
             if confidences is not None and 'style' in confidences:
                 style_loss = style_loss * confidences['style']
             style_loss = style_loss.mean() * self.style_weight
@@ -478,7 +463,6 @@ class WeightedMultiHeadLoss(nn.Module):
 
         loss_dict['total'] = total_loss.item()
         return total_loss, loss_dict
-
 
 
 # %%
@@ -513,7 +497,7 @@ def augment_batch(image_paths, targets, processor):
         try:
             img = Image.open(img_path).convert("RGB")
         except (OSError, UnidentifiedImageError) as e:
-            print(f"⚠️ Skipping corrupted image: {img_path} ({e})")
+            print(f"Skipping corrupted image: {img_path} ({e})")
             continue
         
         # Add original image
@@ -626,7 +610,7 @@ def save_progress(model, save_path):
         state_dict["qformer"] = model.blip2.qformer.state_dict()
         
     torch.save(state_dict, checkpoint_file)
-    print(f"✅ Saved fine-tuned modules to: {checkpoint_file}")
+    print(f" Saved fine-tuned modules to: {checkpoint_file}")
 
 
 # %%
@@ -818,7 +802,12 @@ def forward_images(images):
     with torch.no_grad():
         outputs = model(inputs)
 
-    embeddings = outputs["combined"].cpu().tolist()
+    print(f"Outputs: movement -> {outputs['movement'].shape}, genre -> {outputs['genre'].shape}, style -> {outputs['style'].shape}")
+    # Move each head to CPU and convert to list
+    embeddings = torch.cat([ outputs['movement'], outputs['genre'], outputs['style'] ], 
+                           dim=1).cpu().tolist()
+    
+
     print(f"Forward pass completed on {len(images)} images")
     return embeddings
 

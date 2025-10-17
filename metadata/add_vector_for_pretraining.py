@@ -9,7 +9,7 @@ vector_properties = [
     "movement_realism",
     "movement_impressionism",
 
-    # Genres (6, now with mythological)
+    # Genres (6)
     "genre_historical",
     "genre_religious",
     "genre_mythological",

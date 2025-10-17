@@ -16,18 +16,19 @@ const movements = {
 const genres = {
   "Historical": 6,
   "Religious": 7,
-  "Everyday Life": 8,
-  "Landscape": 9,
-  "Portrait": 10,
+  "Mythological": 8,
+  "Everyday Life": 9,
+  "Landscape": 10,
+  "Portrait": 11,
 };
 
 const form = {
-  "Naturalistic": 11,
-  "Dynamic": 12,
-  "Brushstrokes": 13,
-  "Complexity": 14,
-  "Balance": 15,
-  "Emotionality": 16,
+  "Naturalistic": 12,
+  "Dynamic": 13,
+  "Brushstrokes": 14,
+  "Complexity": 15,
+  "Balance": 16,
+  "Emotionality": 17,
 };
 
 const sections = [
@@ -38,7 +39,7 @@ const sections = [
 
 const Dashboard: React.FC = () => {
   const [sliderValues, setSliderValues] = useState<number[]>(() => {
-    const values = Array(17).fill(0);
+    const values = Array(18).fill(0);
     Object.values(form).forEach(id => (values[id] = 0.5));
     return values;
   });

@@ -34,7 +34,6 @@ export const fetchPainting = async (): Promise<PaintingData> => {
     console.error("Error fetching painting:", error);
     throw error;
   }
-  // return getSamplePainting();
 };
 
 /**
@@ -76,21 +75,4 @@ export const skipImage = async (): Promise<PaintingData> => {
   console.log("Service: skipImage() called — skipping current image.");
   await new Promise((resolve) => setTimeout(resolve, 300)); // simulate latency
   return await fetchPainting();
-};
-
-export const getSamplePainting = () => {
-  const tinyJpeg =
-    "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAkGBxAQEA8QEA8PDw8PDw8PDw8PDw8PDw8PFREWFhURFRUYHSggGBolGxUVITEhJSkrLi4uFx8zODMtNygtLisBCgoKDg0OGxAQGy0mICYtLS8tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLf/AABEIAOEA4QMBIgACEQEDEQH/xAAWAAEBAQAAAAAAAAAAAAAAAAAABQH/xAAZEAEBAQEBAQAAAAAAAAAAAAAAAQIAAwT/xAAVAQEBAAAAAAAAAAAAAAAAAAAABf/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AM8AAB//2Q==";
-
-  return {
-    id: "013107",
-    title: "The Shrew Tamed",
-    artist: "Edwin Henry Landseer",
-    year: "1861",
-    genre: ["genre painting"],
-    movement: ["Romanticism"],
-    tags: [],
-    image: sampleImage || tinyJpeg, // Use imported image, fallback to tiny jpeg
-    vector: Array(17).fill(0.0),
-  };
 };
