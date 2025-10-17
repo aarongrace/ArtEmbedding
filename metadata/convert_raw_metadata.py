@@ -111,8 +111,9 @@ def metadata_to_vector(metadata):
     return new_vector
 
 
+BASE_DIR = Path.cwd()  # fallback for notebooks
 # --- Execution ---
-raw_metadata_path = 'raw_wikiart_metadata.json'
+raw_metadata_path = os.join(BASE_DIR, 'paintings_metadata.json')
 with open(raw_metadata_path, 'r', encoding="utf-8") as f:
     metadata = json.load(f)
 

@@ -49,14 +49,14 @@ local_no_entry = local_files - expected_files
 print(f"Files in local directory with no metadata entry: {len(local_no_entry)}")
 print(local_no_entry)
 
-# delete the files 
-for filename in local_no_entry:
-    file_path = os.path.join(paintings_dir, filename)
-    try:
-        os.remove(file_path)
-        print(f"Deleted file: {file_path}")
-    except Exception as e:
-        print(f"Error deleting file {file_path}: {e}")
+# # delete the files 
+# for filename in local_no_entry:
+#     file_path = os.path.join(paintings_dir, filename)
+#     try:
+#         os.remove(file_path)
+#         print(f"Deleted file: {file_path}")
+#     except Exception as e:
+#         print(f"Error deleting file {file_path}: {e}")
 
 # for filename in entry_no_local:
 #     id_to_remove = filename_to_id.get(filename)
