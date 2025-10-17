@@ -42,7 +42,8 @@ async def get_painting_with_forward():
         artist=image_entry.get("artist", "Unknown Artist"),
         year=image_entry.get("year", "Unknown Year"),
         genre=image_entry.get("genres", []),
-        movement=image_entry.get("movement", []),
+        # note that the wikiart meta data calls what I call "movements" as "styles"
+        movement=image_entry.get("styles", []),
         tags=image_entry.get("tags", []),
         imageUrl=image_url_mounted,
         vector=predictions

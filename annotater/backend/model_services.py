@@ -3,14 +3,13 @@ import base64
 import json
 import random
 from PIL import Image
-import PIL
 
 # Get root folder of the project
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent  # move up from backend/model.py to root
 PAINTINGS_DIR = ROOT_DIR / "paintings"
 METADATA_FILE = ROOT_DIR / "metadata/paintings_metadata.json"
 USERS_STATE_FILE = ROOT_DIR / "metadata/users_state.json"
-USER_NAME = "admin"  # Default user name for simplicity
+USER_NAME = "admin"
 
 GROUND_TRUTH_LABELS_FIELD_NAME = "ground_truths_created"
 
@@ -126,24 +125,10 @@ def load_PIL_image(image_id: str) -> Image.Image:
     image = Image.open(image_path).convert("RGB")
     return image
 
-def get_64_encoded_image(image_id: str) -> str:
-    image_path = get_image_path(image_id, local=True)
-    with open(image_path, "rb") as img_file:
-        encoded_string = base64.b64encode(img_file.read()).decode('utf-8')
-    return encoded_string
-
 
 def get_random_image_id(num: int = 1, exclude: list = []):
     """
     Get random image ID(s) that haven't been seen yet.
-    
-    Args:
-        num: Number of random IDs to return (default: 1)
-        exclude: List of image IDs to exclude from selection (default: [])
-        
-    Returns:
-        - If num == 1: returns a single image_id string
-        - If num > 1: returns a list of image_id strings
     """
     ids_in_folder = [p.stem.split("_")[0] for p in all_image_paths]
     seen_list = get_seen_list()
