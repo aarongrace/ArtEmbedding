@@ -114,17 +114,12 @@ def set_user_name(name: str):
 
 all_image_paths = sorted(list(PAINTINGS_DIR.glob("*.jpg")))
 def get_image_path(image_id: str, local: bool) -> str:
-    image_id_num = int(image_id)
-    print(f"Getting path for image ID: {image_id} -> {image_id_num}")
-    if image_id_num < 1 or image_id_num > len(all_image_paths):
-        raise ValueError(f"Invalid image ID: {image_id}")
+    for path in all_image_paths:
+        if path.stem.startswith(image_id + "_"):
+            print(f"Found image path for ID {image_id}: {path}")
+            return str(path) if local else f"/paintings/{path.name}"
     
-    local_path = str(all_image_paths[image_id_num - 1])
-    if local:
-        return local_path
-    else:
-        file_name = local_path.split("\\")[-1]  # Adjust for Windows path separator
-        return f"/paintings/{file_name}"
+    raise ValueError(f"No image found for ID: {image_id}")
 
 def load_PIL_image(image_id: str) -> Image.Image:
     image_path = get_image_path(image_id, local=True)

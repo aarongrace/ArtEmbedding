@@ -11,79 +11,78 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.17.3
 #   kernelspec:
-#     display_name: Python (my_venv)
+#     display_name: ArtEmbedding-venv
 #     language: python
-#     name: my_venv
+#     name: artembedding-venv
 # ---
 
 # %%
-MOVEMENT_DIM = 5
+MOVEMENT_DIM = 6
 GENRE_DIM = 5
 STYLE_DIM = 6
+PRETRAINING = False
 
 
 # %%
-
-
 # get the images
-from PIL import Image
+from PIL import Image, ImageOps
 import os, json, torch
+from pathlib import Path
 
 MAIN_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 VISION_DEVICE = MAIN_DEVICE
 try:  # Check if running in Colab
-    from google.colab import drive
-    IN_COLAB = True
-    print("running in Google Colab")
-    mount_path = '/content/drive'
-    if not os.path.exists(mount_path):
-        drive.mount(mount_path)
-    imgs_directory_path = '/content/drive/MyDrive/ArtEmbed'
-    pretraining_metadata = '/content/drive/MyDrive/ArtEmbed/wikiart_metadata_with_pretraining_groundtruth.json'
+    BASE_DIR = Path(__file__).resolve().parent  # works in scripts
+    print("running from laptop, probably")
+    VISION_DEVICE = "cpu" # not even GPU mem on laptop
+except NameError:
+    BASE_DIR = Path.cwd()  # fallback for notebooks
+    print("running from IDAS, probably")
 
-except ImportError:  # Not Colab
-    from pathlib import Path
-    IN_COLAB = False
-
-    try:
-        BASE_DIR = Path(__file__).resolve().parent  # works in scripts
-        print("running from laptop, probably")
-        VISION_DEVICE = "cpu" # not even GPU mem on laptop
-    except NameError:
-        BASE_DIR = Path.cwd()  # fallback for notebooks
-        print("running from IDAS, probably")
-
-    imgs_directory_path = BASE_DIR / "paintings"
-    pretraining_metadata = BASE_DIR / "metadata" / "wikiart_metadata_with_pretraining_groundtruth.json"
-
-
-def load_image_from_drive():
-  image_array = []
-  image_names = []
-  image_ids =[]
-
-  all_files = sorted(os.listdir(imgs_directory_path))
-  for file_name in all_files:
-      if file_name.lower().endswith((".jpg", ".jpeg", ".png")):
-          path = os.path.join(imgs_directory_path, file_name)
-          img = Image.open(path).convert("RGB")
-          image_array.append(img)
-          image_names.append(file_name)
-          image_ids.append(file_name.split("_")[0])
-
-  print(f"Found {len(image_array)} images. Image ids: {image_ids}")
-  return image_array, image_ids
-
-def load_pretraining_metadata():
-    with open(pretraining_metadata, 'r', encoding="utf-8") as f:
-        metadata = json.load(f)
-    # print(metadata.keys())
-    print(f"Found metadata for {len(metadata)} paintings.")
-    return metadata
-
-
+imgs_directory_path = BASE_DIR / "paintings"
+pretraining_metadata = BASE_DIR / "metadata" / "paintings_metadata_with_rough_groundtruth.json"
 
 # %%
+import os
+import glob
+
+def get_latest_checkpoint(checkpoint_dir=os.path.join(BASE_DIR, "checkpoints")):
+    """Return the latest checkpoint path by modified time, or None if none exist."""
+    checkpoint_files = glob.glob(os.path.join(checkpoint_dir, "model_*.pt"))
+    if not checkpoint_files:
+        return None
+    # Sort by modification time
+    checkpoint_files.sort(key=os.path.getmtime)
+    return checkpoint_files[-1]
+
+def load_model_from_latest(model):
+    """
+    Load state dict into model (for the custom nested format).
+    
+    Args:
+        model: BLIP2MultiHeadRegression model instance
+        state_dict_path: Path to .pt file with state dict
+    """
+    latest_check_point = get_latest_checkpoint()
+    if latest_check_point is None:
+        print("No checkpoint found. Starting from scratch.")
+        return
+    state_dict = torch.load(latest_check_point, map_location='cpu')
+    
+    model.shared_features.load_state_dict(state_dict["shared_features"])
+    model.movement_head.load_state_dict(state_dict["movement_head"])
+    model.genre_head.load_state_dict(state_dict["genre_head"])
+    model.style_head.load_state_dict(state_dict["style_head"])
+    
+    # Load Q-Former if it was saved
+    if "qformer" in state_dict:
+        model.blip2.qformer.load_state_dict(state_dict["qformer"])
+        print("✓ Loaded Q-Former weights")
+    
+    print(f"✓ Loaded weights from {latest_check_point}")
+
+# %%
+
 
 # --- Import libraries ---
 from transformers import Blip2Processor, Blip2ForConditionalGeneration
@@ -108,8 +107,8 @@ else:
     processor.save_pretrained(local_model_path)
     blip2.save_pretrained(local_model_path)
 
-blip2.to("cpu")  # Load model on CPU to avoid GPU memory issues
-print(f"Loaded model on cpu")
+blip2.to(VISION_DEVICE)  # Load model on CPU first if on computer
+print(f"model sent to {VISION_DEVICE}")
 
 # Freeze vision encoder to save memory; we are not training the vision encoder
 for param in blip2.vision_model.parameters():
@@ -117,41 +116,173 @@ for param in blip2.vision_model.parameters():
 
 
 # %%
+import os
+import json
+import random
+import numpy as np
+from PIL import Image
+import torch
+from torch.utils.data import Dataset, DataLoader
 
 
-from torch.utils.data import DataLoader, TensorDataset
+class PaintingDataset(Dataset):
+    """Proper PyTorch Dataset for painting images and targets"""
+    def __init__(self, image_paths, targets):
+        self.image_paths = image_paths
+        self.targets = targets
+    
+    def __len__(self):
+        return len(self.image_paths)
+    
+    def __getitem__(self, idx):
+        path = self.image_paths[idx]
+        target = self.targets[idx]
+        # Convert target list to tensor
+        target_tensor = torch.tensor(target, dtype=torch.float32)
+        return path, target_tensor
 
-def create_dataloader(image_list, target_list, processor, device, batch_size=4, shuffle=True):
-    # Convert images to pixel values tensors
-    pixel_values_tensor = torch.stack([
-        processor(images=img, return_tensors="pt").pixel_values.squeeze(0) 
-        for img in image_list
-    ])  # [N, 3, H, W]
 
-    # Convert targets to tensor
-    targets_tensor = torch.stack([torch.tensor(t, dtype=torch.float32) for t in target_list])  # [N, total_dims]
+def collate_fn(batch):
+    """
+    Custom collate function for DataLoader.
+    batch: list of (path, target_tensor) tuples
+    Returns: (list of paths, stacked targets tensor [batch_size, 12])
+    """
+    paths, targets = zip(*batch)
+    targets_tensor = torch.stack(targets)
+    return list(paths), targets_tensor
 
-    # Create TensorDataset
-    dataset = TensorDataset(pixel_values_tensor, targets_tensor)
 
-    # Create DataLoader
-    dataloader = DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=shuffle,
-        pin_memory=True
+def create_train_test_loaders(
+    imgs_directory_path, 
+    pretraining_metadata_path, 
+    batch_size_train=32, 
+    batch_size_test=32, 
+    test_percentage=0.1,
+):
+    """Create dataloaders that return IMAGE PATHS and properly stacked TARGETS."""
+    
+    print("="*80)
+    print("LOADING DATASET")
+    print("="*80)
+    
+    # --- Scan folder for images ---
+    image_paths = []
+    image_ids = []
+    all_files = sorted(os.listdir(imgs_directory_path))
+    
+    for file_name in all_files:
+        if file_name.lower().endswith((".jpg", ".jpeg", ".png")):
+            path = os.path.join(imgs_directory_path, file_name)
+            image_paths.append(path)
+            # Extract ID from filename (first part before underscore)
+            image_ids.append(file_name.split("_")[0])
+    
+    print(f"Found {len(image_paths)} image files in {imgs_directory_path}")
+    
+    # --- Load metadata ---
+    with open(pretraining_metadata_path, 'r', encoding="utf-8") as f:
+        metadata = json.load(f)
+    print(f"Loaded metadata for {len(metadata)} paintings")
+    
+    # --- Match images with valid targets ---
+    targets = []
+    valid_paths = []
+    matched_count = 0
+    
+    for path, img_id in zip(image_paths, image_ids):
+        if img_id in metadata and "rough_groundtruth" in metadata[img_id]:
+            target = metadata[img_id]["rough_groundtruth"]
+            targets.append(target)
+            valid_paths.append(path)
+            matched_count += 1
+    
+    print(f"Matched {matched_count}/{len(image_paths)} images with valid targets")
+    
+    if matched_count == 0:
+        raise ValueError("No images matched with metadata! Check your image IDs and metadata format.")
+    
+    # --- Verify target dimensions ---
+    first_target = targets[0]
+    target_dim = len(first_target)
+    print(f"Target dimension: {target_dim}")
+    for i, t in enumerate(targets[:3]):
+        if len(t) != target_dim:
+            raise ValueError(f"Inconsistent target dimensions: image {i} has {len(t)}, expected {target_dim}")
+    
+    # --- Split train/test ---
+    num_images = len(valid_paths)
+    num_test = int(num_images * test_percentage)
+    indices = list(range(num_images))
+    random.shuffle(indices)
+    test_indices = set(indices[:num_test])
+    
+    train_paths = [valid_paths[i] for i in range(num_images) if i not in test_indices]
+    train_targets = [targets[i] for i in range(num_images) if i not in test_indices]
+    test_paths = [valid_paths[i] for i in range(num_images) if i in test_indices]
+    test_targets = [targets[i] for i in range(num_images) if i in test_indices]
+    
+    print(f"\nTrain: {len(train_paths)} images")
+    print(f"Test: {len(test_paths)} images")
+    print(f"Sample train path: {train_paths[0]}")
+    print(f"Sample train target: {train_targets[0]}")
+    
+    # --- Create Dataset objects ---
+    train_dataset = PaintingDataset(train_paths, train_targets)
+    test_dataset = PaintingDataset(test_paths, test_targets)
+    
+    # --- Create DataLoaders with custom collate function ---
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size_train,
+        shuffle=True,
+        num_workers=0,
+        collate_fn=collate_fn
     )
+    
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=batch_size_test,
+        shuffle=False,
+        num_workers=0,
+        collate_fn=collate_fn
+    )
+    
+    # --- Verify DataLoader output ---
+    print("\n" + "="*80)
+    print("VERIFYING DATALOADER OUTPUT")
+    print("="*80)
+    
+    for batch_idx, (image_paths_batch, targets_batch) in enumerate(train_loader):
+        print(f"\nBatch {batch_idx}:")
+        print(f"  image_paths: {len(image_paths_batch)} items (type: {type(image_paths_batch)})")
+        print(f"  targets: {targets_batch.shape} (type: {type(targets_batch)})")
+        print(f"  targets dtype: {targets_batch.dtype}")
+        print(f"  targets range: [{targets_batch.min():.2f}, {targets_batch.max():.2f}]")
+        print(f"  First path: {image_paths_batch[0]}")
+        print(f"  First target: {targets_batch[0]}")
+        
+        if batch_idx >= 1:
+            break
+    
+    print("\n✓ DataLoader verification complete!")
+    print("="*80)
+    
+    return train_loader, test_loader
 
-    # Wrap batches with device transfer
-    def device_loader():
-        for batch_pixel_values, batch_targets in dataloader:
-            yield batch_pixel_values.to(device, non_blocking=True), batch_targets.to(device, non_blocking=True)
 
-    print(f"Created DataLoader with {len(dataloader)} batches of size {batch_size}")
+# ============================================================================
+# USAGE
+# ============================================================================
 
-    return device_loader()
-
-
+if PRETRAINING:
+    train_loader, test_loader = create_train_test_loaders(
+        imgs_directory_path=imgs_directory_path,
+        pretraining_metadata_path=pretraining_metadata,
+        batch_size_train=32,
+        batch_size_test=32,
+        test_percentage=0.1,
+    )
 
 # %%
 
@@ -168,11 +299,8 @@ def print_gpu_mem(prefix="GPU"):
 # %%
 
 
-from torch import nn
-
 import torch
 import torch.nn as nn
-
 
 class BLIP2MultiHeadRegression(nn.Module):
     def __init__(self, blip2_model,
@@ -283,9 +411,9 @@ class BLIP2MultiHeadRegression(nn.Module):
         shared_features = self.shared_features(flattened)
 
         # --- Regression heads ---
-        movement_scores = torch.sigmoid(self.movement_head(shared_features))
-        genre_scores = torch.sigmoid(self.genre_head(shared_features))
-        style_scores = torch.sigmoid(self.style_head(shared_features))
+        movement_scores = self.movement_head(shared_features)
+        genre_scores = self.genre_head(shared_features)
+        style_scores = self.style_head(shared_features)
 
         outputs = {
             'movement': movement_scores,
@@ -301,45 +429,47 @@ class BLIP2MultiHeadRegression(nn.Module):
 
 
 class WeightedMultiHeadLoss(nn.Module):
-    def __init__(self, movement_weight=1.0, genre_weight=0.7, style_weight=0.8, use_style=True):
+    def __init__(self, movement_weight=1.0, genre_weight=1.0, style_weight=1.0, use_style=True):
         super().__init__()
         self.movement_weight = movement_weight
         self.genre_weight = genre_weight
         self.style_weight = style_weight
         self.use_style = use_style
 
+        # BCE loss for binary targets
+        self.bce = nn.BCEWithLogitsLoss(reduction='none')
+
     def forward(self, predictions, targets, confidences=None):
         """
         Args:
-            predictions: dict with 'movement', 'genre', 'style'
-            targets: tensor [batch, total_dim] (already prepared)
+            predictions: dict with 'movement', 'genre', 'style' (raw logits)
+            targets: tensor [batch, total_dim] (binary targets 0 or 1)
             confidences: dict with confidence scores (optional)
         """
-        # Split targets using global dims
+        # Split targets by head dimensions
         movement_target = targets[:, :MOVEMENT_DIM]
         genre_target    = targets[:, MOVEMENT_DIM : MOVEMENT_DIM + GENRE_DIM]
-        style_target    = targets[:, MOVEMENT_DIM + GENRE_DIM :]
 
-        mse = nn.MSELoss(reduction='none')
-
-        # Movement loss
-        movement_loss = mse(predictions['movement'], movement_target)
+        # --- Movement loss ---
+        movement_loss = self.bce(predictions['movement'], movement_target)
         if confidences is not None and 'movement' in confidences:
             movement_loss = movement_loss * confidences['movement']
         movement_loss = movement_loss.mean() * self.movement_weight
 
-        # Genre loss
-        genre_loss = mse(predictions['genre'], genre_target)
+        # --- Genre loss ---
+        genre_loss = self.bce(predictions['genre'], genre_target)
         if confidences is not None and 'genre' in confidences:
             genre_loss = genre_loss * confidences['genre']
         genre_loss = genre_loss.mean() * self.genre_weight
 
+        # --- Total loss ---
         total_loss = movement_loss + genre_loss
         loss_dict = {'movement': movement_loss.item(), 'genre': genre_loss.item()}
 
-        # Style loss
+        # --- Style loss (optional) ---
         if self.use_style:
-            style_loss = mse(predictions['style'], style_target)
+            style_target = targets[:, MOVEMENT_DIM + GENRE_DIM :]
+            style_loss = self.bce(predictions['style'], style_target)
             if confidences is not None and 'style' in confidences:
                 style_loss = style_loss * confidences['style']
             style_loss = style_loss.mean() * self.style_weight
@@ -350,200 +480,305 @@ class WeightedMultiHeadLoss(nn.Module):
         return total_loss, loss_dict
 
 
+
 # %%
+from PIL import Image, ImageOps, UnidentifiedImageError, ImageFile
+import numpy as np
+import torch
+
+# Do NOT allow truncated images - raise errors instead
+ImageFile.LOAD_TRUNCATED_IMAGES = False
+
+def augment_batch(image_paths, targets, processor):
+    """
+    Load images, create flipped versions, and return pixel values.
+    
+    Args:
+        image_paths: List of file paths to images (length batch_size)
+        targets: Tensor of shape [batch_size, 12]
+        processor: BLIP2 processor
+        
+    Returns:
+        pixel_values: Tensor of shape [batch_size*2, 3, H, W]
+        doubled_targets: Tensor of shape [batch_size*2, 12]
+    """
+    images = []
+    doubled_targets = []
+    
+    # Iterate by index since targets is a tensor
+    for idx in range(len(image_paths)):
+        img_path = image_paths[idx]
+        target = targets[idx]  # Get row from tensor
+        
+        try:
+            img = Image.open(img_path).convert("RGB")
+        except (OSError, UnidentifiedImageError) as e:
+            print(f"⚠️ Skipping corrupted image: {img_path} ({e})")
+            continue
+        
+        # Add original image
+        images.append(img)
+        doubled_targets.append(target)
+        
+        # Add horizontally flipped image
+        flipped_img = ImageOps.mirror(img)
+        images.append(flipped_img)
+        doubled_targets.append(target)
+    
+    if len(images) == 0:
+        return None, None
+    
+    # Process all images at once with processor
+    pixel_values = processor(images=images, return_tensors="pt").pixel_values
+    
+    # Stack all target rows into [num_images, 12]
+    targets_tensor = torch.stack(doubled_targets)
+    
+    return pixel_values, targets_tensor
 
 
+# %%
 import time
-
-def train_epoch(model, dataloader, optimizer, criterion, device):
+def train_epoch(model, dataloader, optimizer, criterion, device, processor):
     model.train()
     total_loss = 0.0
-    num_batches = 0
-    num_images = 0
-
     start_time = time.time()
-
-    for step, (pixel_values, targets) in enumerate(dataloader):
-        batch_size = pixel_values.size(0)
-        num_batches += 1
-        num_images += batch_size
-
+    
+    images_processed = 0
+    for step, (image_paths, targets) in enumerate(dataloader):
+        # print(f"step: {step}, image_paths: {image_paths}, targets: {targets}")
+        # Augment the batch
+        pixel_values, targets_tensor = augment_batch(image_paths, targets, processor)
+        if pixel_values == None:
+            continue
+        
         pixel_values = pixel_values.to(device, non_blocking=True)
-        targets = targets.to(device, non_blocking=True)  # [batch, total_dim]
+        targets_tensor = targets_tensor.to(device, non_blocking=True)
 
 
         optimizer.zero_grad()
         predictions = model(pixel_values)
-        loss, loss_dict = criterion(predictions, targets)
-
+        loss, loss_dict = criterion(predictions, targets_tensor)
+        
         loss.backward()
         optimizer.step()
-
+        
         total_loss += loss.item()
         time_elapsed = time.time() - start_time
-        # if step % 2 == 0:
-        if True:
-            print(f"Step {step} image number {num_images} time_elapsed {time_elapsed:.2f}s | Loss: {loss.item():.4f}")
-            print_gpu_mem()
 
-    end_time = time.time()
-    epoch_time = end_time - start_time
+        images_processed += len(pixel_values)
+        
+        if step % 10 == 0:
+        # if True:
+            print(f"Step {step + 1}/{len(dataloader)} | Images: {images_processed} | Time: {time_elapsed:.2f}s | Loss: {loss.item():.4f}")
+            # print_gpu_mem()
+        
+    num_batches = len(dataloader)
+    total_images = num_batches * dataloader.batch_size * 2  # *2 for augmentation
     avg_loss = total_loss / num_batches
-    print(f"Epoch complete | Avg Loss: {avg_loss:.4f}")
-    print(f"Time: {epoch_time:.2f}s | Per batch: {epoch_time/num_batches:.2f}s | Per image: {epoch_time/num_images:.4f}s")
-
+    epoch_time = time.time() - start_time
+    
+    print(f"Epoch complete | Avg Loss: {avg_loss:.4f} | Total images: {total_images} | Time: {epoch_time:.2f}s")
+    
     return avg_loss
 
 
-
-def test_epoch(model, dataloader, criterion, device):
+# %%
+def test_epoch(model, dataloader, criterion, device, processor):
     model.eval()
     total_loss = 0.0
-
+    
     with torch.no_grad():
-        for pixel_values, targets in dataloader:
+        for image_paths, targets in dataloader:
+            # Augment the batch (same as training for consistency)
+            pixel_values, targets_tensor = augment_batch(image_paths, targets, processor)
+            
             pixel_values = pixel_values.to(device, non_blocking=True)
-            targets = targets.to(device, non_blocking=True)  # [batch, total_dim]
-
+            targets_tensor = targets_tensor.to(device, non_blocking=True)
+            
             predictions = model(pixel_values)
-            loss, _ = criterion(predictions, targets)
+            loss, _ = criterion(predictions, targets_tensor)
             total_loss += loss.item()
-
+    
     avg_loss = total_loss / len(dataloader)
     print(f"Validation complete | Avg Loss: {avg_loss:.4f}")
     return avg_loss
 
 
 # %%
+from datetime import datetime
+import os
+def save_progress(model, save_path):
 
+    os.makedirs(save_path, exist_ok=True)
+    time_str = datetime.now().strftime("%Y%m%d_%H%M%S")  # e.g., 20251013_170512
+    checkpoint_file = os.path.join(save_path, f"model_{time_str}.pt")
 
-def train_model(model, train_loader, val_loader, optimizer, criterion, device, num_epochs=10, save_path=None):
-    history = {
-        "train_loss": [],
-        "val_loss": []
+    state_dict = {
+        "shared_features": model.shared_features.state_dict(),
+        "movement_head": model.movement_head.state_dict(),
+        "genre_head": model.genre_head.state_dict(),
+        "style_head": model.style_head.state_dict(),
     }
 
+    # Optionally include Q-Former if it's being trained
+    if any(p.requires_grad for p in model.blip2.qformer.parameters()):
+        state_dict["qformer"] = model.blip2.qformer.state_dict()
+        
+    torch.save(state_dict, checkpoint_file)
+    print(f"✅ Saved fine-tuned modules to: {checkpoint_file}")
+
+
+# %%
+def train_model(model, train_loader, val_loader, optimizer, criterion, device, processor, 
+                num_epochs=10, save_path=None, scheduler=None, early_stopping_patience=None):
+    print("Starting training")
+    
+    history = {
+        "train_loss": [],
+        "val_loss": [],
+        "learning_rates": []
+    }
+    
+    best_val_loss = float('inf')
+    epochs_without_improvement = 0
+    
     for epoch in range(1, num_epochs + 1):
-        print(f"\n=== Epoch {epoch}/{num_epochs} ===")
-
+        print(f"\n{'='*60}")
+        print(f"Epoch {epoch}/{num_epochs}")
+        if scheduler:
+            current_lr = optimizer.param_groups[0]['lr']
+            print(f"Learning rate: {current_lr:.2e}")
+            history["learning_rates"].append(current_lr)
+        print(f"{'='*60}")
+        
         # Training
-        train_loss = train_epoch(model, train_loader, optimizer, criterion, device)
+        train_loss = train_epoch(model, train_loader, optimizer, criterion, device, processor)
         history["train_loss"].append(train_loss)
-
+        
         # Validation
         if val_loader is not None:
-            val_loss = test_epoch(model, val_loader, criterion, device)
+            val_loss = test_epoch(model, val_loader, criterion, device, processor)
             history["val_loss"].append(val_loss)
+            
+            # Check for improvement
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                epochs_without_improvement = 0
+            else:
+                epochs_without_improvement += 1
+                print(f"No improvement for {epochs_without_improvement} epoch(s)")
+            
+            # Early stopping
+            if early_stopping_patience and epochs_without_improvement >= early_stopping_patience:
+                print(f"\nEarly stopping triggered after {epoch} epochs")
+                print(f"Best validation loss: {best_val_loss:.4f}")
+                break
+            
+            # Learning rate scheduling
+            if scheduler:
+                if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                    scheduler.step(val_loss)
+                else:
+                    scheduler.step()
+        
+            if save_path is not None:
+                save_progress(model, save_path)
 
-        # Save checkpoint
-        if save_path is not None:
-            checkpoint_file = f"{save_path}/model_epoch_{epoch}.pt"
-            torch.save(model.state_dict(), checkpoint_file)
-            print(f"Saved checkpoint: {checkpoint_file}")
-
-    print("\nTraining complete")
+    
+    print("\n" + "="*60)
+    print("Training complete")
+    if val_loader is not None:
+        print(f"Best validation loss: {best_val_loss:.4f}")
+    print("="*60)
+    
     return history
 
 
-# %%
-
-
-import random
-def split_train_test(image_list, targets, test_percentage=0.1):
-    test_percentage = 0.1
-    num_images = len(image_list)
-    num_test = int(num_images * test_percentage)
-
-    # Randomly sample indices for test set
-    test_indices = random.sample(range(num_images), num_test)
-
-    # Create test images and targets
-    test_images = [image_list[i] for i in test_indices]
-    test_targets = [targets[i] for i in test_indices]
-
-    # Optionally, remove test items from the training set
-    train_images = [img for idx, img in enumerate(image_list) if idx not in test_indices]
-    train_targets = [tgt for idx, tgt in enumerate(targets) if idx not in test_indices]
-
-    train_loader = create_dataloader(
-        train_images, train_targets, processor, MAIN_DEVICE, batch_size=16, shuffle=True
-    )
-    test_loader = create_dataloader(
-        test_images, test_targets, processor, MAIN_DEVICE, batch_size=32, shuffle=False
-    )
-    return train_loader, test_loader
-
 
 # %%
-
 
 def pretrain_model():
-    # PRETRAINING: No style head
-    print("="*50)
+    """
+    Pretrain the model without style head.
+    """
+    print("="*60)
     print("PRETRAINING MODE (no style head)")
-    print("="*50)
-    image_list, image_ids = load_image_from_drive()
-    pretraining_metadata = load_pretraining_metadata()
-    from augmentation import augment_images_for_pretraining
-    image_list, image_ids, targets = augment_images_for_pretraining(image_list, image_ids, pretraining_metadata)   
-
-
-    pretrain_model = BLIP2MultiHeadRegression( blip2,
-        use_style_head=False, train_qformer=False, train_vision=False
+    print("="*60)
+    
+    # Model setup
+    pretrain_model = BLIP2MultiHeadRegression(
+        blip2,
+        use_style_head=False,
+        train_qformer=True,
+        train_vision=False
     )
-    pretrain_criterion = WeightedMultiHeadLoss( movement_weight=1.0, genre_weight=0.7,
-        use_style=False,).to(MAIN_DEVICE)
-    optimizer = torch.optim.AdamW(pretrain_model.parameters(), lr=1e-4)
-
-
-    train_loader, test_loader = split_train_test(image_list, targets, test_percentage=0.1)
-    save_dir = "./checkpoints"
-    history = train_model(pretrain_model, train_loader, test_loader, optimizer, pretrain_criterion,
-        MAIN_DEVICE, num_epochs=1, save_path=save_dir
+    load_model_from_latest(pretrain_model)
+    
+    # Loss and optimizer
+    pretrain_criterion = WeightedMultiHeadLoss(
+        movement_weight=1.0,
+        genre_weight=1.0,
+        use_style=False
+    ).to(MAIN_DEVICE)
+    
+    optimizer = torch.optim.AdamW(
+        pretrain_model.parameters(),
+        lr=1e-5,
+        weight_decay=0.01  # Added weight decay for regularization
     )
-# pretrain_model()
+    
+    # Learning rate scheduler (optional but recommended)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode='min',
+        factor=0.5,
+        patience=3,
+        min_lr=1e-6
+    )
+    
+    # Save directory
+    save_dir = BASE_DIR / "checkpoints"
+    save_dir.mkdir(exist_ok=True, parents=True)
+    
+    # Train
+    history = train_model(
+        model=pretrain_model,
+        train_loader=train_loader,
+        val_loader=test_loader,
+        optimizer=optimizer,
+        criterion=pretrain_criterion,
+        device=MAIN_DEVICE,
+        processor=processor,
+        num_epochs=5,
+        save_path=save_dir,
+        scheduler=scheduler,
+        early_stopping_patience=5  # Stop if no improvement for 5 epochs
+    )
+    
+    # Save final history
+    import json
+    history_path = save_dir / "training_history.json"
+    with open(history_path, 'w') as f:
+        json.dump(history, f, indent=2)
+    print(f"\nTraining history saved to {history_path}")
+    
+    return history
+
+
+if PRETRAINING:
+    pretrain_model()
 
 
 # %%
 
 
-import os
-import glob
 import torch
 from transformers import Blip2Processor
 from augmentation import augment_annotated_images
 
 # --- Global variables for lazy loading ---
 _model, _processor = None, None
-
-def get_latest_checkpoint(checkpoint_dir="./checkpoints"):
-    """Return the latest checkpoint path or None if none exist."""
-    checkpoint_files = glob.glob(os.path.join(checkpoint_dir, "model_epoch_*.pt"))
-    if not checkpoint_files:
-        return None
-    # Sort by epoch number
-    checkpoint_files.sort(key=lambda x: int(os.path.splitext(os.path.basename(x))[0].split("_")[-1]))
-    return checkpoint_files[-1]
-
-import os
-from datetime import datetime
-import torch
-
-BASE_DIR = "/path/to/your/project"  # replace with your BASE_DIR
-
-def save_model_checkpoint(model):
-    checkpoint_dir = os.path.join(BASE_DIR, ".checkpoints")
-    os.makedirs(checkpoint_dir, exist_ok=True)
-    # Generate abbreviated timestamp (YYMMDD_HHMMSS)
-    timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
-
-    # Build checkpoint path
-    checkpoint_path = os.path.join(checkpoint_dir, f"model_{timestamp}.pt")
-
-    # Save model state
-    torch.save(model.state_dict(), checkpoint_path)
-    print(f"Model saved to {checkpoint_path}")
-
 
 def initialize_model_for_webaccess():
     """
@@ -557,13 +792,7 @@ def initialize_model_for_webaccess():
         train_vision=False
     )
 
-    latest_ckpt = get_latest_checkpoint()
-    if latest_ckpt is not None:
-        model.load_state_dict(torch.load(latest_ckpt, map_location="cpu"))
-        print(f"Loaded model weights from {latest_ckpt}")
-    else:
-        print("No checkpoint found, using untrained weights.")
-
+    load_model_from_latest(model)
     model.eval()
 
     processor = Blip2Processor.from_pretrained(local_model_path, use_fast=True)
@@ -623,3 +852,5 @@ def backward_single_image(image, target, lr=1e-5):
 
     return loss.item(), loss_dict
 
+
+# %%
