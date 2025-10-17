@@ -170,13 +170,6 @@ function getPaintingData() {
 
 
 function sanitizeFilename(str) {
-    const replacedSlash = str.replace(/\//g, "%");
-    console.log(`Sanitized slashes: ${replacedSlash}`);
-    const replacedForbidden = replacedSlash.replace(/[\\:*?"<>|]/g, "_");
-    console.log(`Sanitized forbidden chars: ${replacedForbidden}`);
-    const lowercased = replacedForbidden.toLowerCase();
-    console.log(`Lowercased: ${lowercased}`);
-
     return str
         .replace(/\//g,"—")
         .replace(/[\\:*?"<>|]/g, "_")  // only replace truly forbidden chars
@@ -187,23 +180,8 @@ function buildFilename(painting) {
     // Zero pad ID to 6 digits
     const paddedId = String(painting.id).padStart(6, "0");
 
-    // // Get artist last name (if available)
-    // const lastName = painting.artist.includes(" ")
-    //     ? painting.artist.split(" ").slice(-1)[0]
-    //     : painting.artist;
-
-    // // Shorten movement + genre(s)
-    // const shortMovement = painting.styles?.[0] ? painting.styles[0].slice(0, 4) : "unkn";
-    // const shortGenres = painting.genres?.length
-    //     ? painting.genres.map(g => g.slice(0, 4)).join("-")
-    //     : "none";
-
     const urlEnding = painting.url.split("/en/")[1] || "unknown";
     return sanitizeFilename(`${paddedId}_${urlEnding}`);
-
-
-    // Build filename
-    // return sanitizeFilename( `${paddedId}_${lastName}-${painting.title}-${shortMovement}-${shortGenres}-${urlEnding}` );
 }
 
 async function getImageFromPage(paintingData) {

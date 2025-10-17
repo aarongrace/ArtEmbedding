@@ -12,20 +12,22 @@ async function initIdPool() {
     // Collect used IDs as strings
     const usedIds = new Set(stored.map(p => p.id).filter(Boolean));
 
-    // Build pool of string IDs from "000000" to "30000"
     const availableIds = [];
-    for (let i = 21061; i <= 30000; i++) {
+    // IDs <= 1374
+    for (let i = 0; i <= 1374; i++) {
         const idStr = String(i).padStart(6, "0");
         if (!usedIds.has(idStr)) {
             availableIds.push(idStr);
         }
     }
 
-    // Optional: shuffle if you want random allocation
-    // for (let i = availableIds.length - 1; i > 0; i--) {
-    //     const j = Math.floor(Math.random() * (i + 1));
-    //     [availableIds[i], availableIds[j]] = [availableIds[j], availableIds[i]];
-    // }
+    // IDs > 30928
+    for (let i = 30929; i <= 30000 + 10000; i++) { // choose upper limit as needed
+        const idStr = String(i).padStart(6, "0");
+        if (!usedIds.has(idStr)) {
+            availableIds.push(idStr);
+        }
+    }
 
     nextIdCache = availableIds;
     console.log(`========== ID pool initialized with ${availableIds.length} available IDs ==========`);
