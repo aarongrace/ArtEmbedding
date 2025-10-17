@@ -62,13 +62,6 @@ def metadata_to_vector(metadata):
         0.0,  # Everyday life
         0.0,  # Landscape
         0.0,  # Portrait
-
-        0.8,  # Stylized ↔ Naturalistic
-        0.5,  # Still ↔ Dynamic
-        0.3,  # Brushstrokes
-        0.5,  # Complexity
-        0.7,  # Balance
-        0.5   # Emotionality
     ]
 
     # Process movement
@@ -110,25 +103,28 @@ def metadata_to_vector(metadata):
 
     return new_vector
 
-
-BASE_DIR = Path.cwd()  # fallback for notebooks
+from pathlib import Path
+import os
+BASE_DIR = Path(__file__).resolve().parent
+print(f"Base directory for metadata: {BASE_DIR}")
 # --- Execution ---
-raw_metadata_path = os.join(BASE_DIR, 'paintings_metadata.json')
+raw_metadata_path = os.path.join(BASE_DIR, 'paintings_metadata.json')
 with open(raw_metadata_path, 'r', encoding="utf-8") as f:
-    metadata = json.load(f)
+    paintings_metadata = json.load(f)
 
-paintings_metadata = metadata["paintings"]
 print(f"Total paintings in raw metadata: {len(paintings_metadata)}")
+print(f"Sample metadata entry:\n{json.dumps(paintings_metadata[paintings_metadata.keys().__iter__().__next__()], indent=4)}")
 
 converted_metadata = {}
 skipped_count = 0
 
-for item in paintings_metadata:
+for i in paintings_metadata:
+    item = paintings_metadata[i]
     image_id = item["id"]
     vector = metadata_to_vector(item)
 
     if vector is not None:
-        item["pretraining_groundtruth"] = vector
+        item["rough_groundtruth"] = vector
         item.pop("id", None)  # Remove the id field since it's now the key
         converted_metadata[image_id] = item
     else:
@@ -142,7 +138,7 @@ print(f"\nFinished processing.")
 print(f"✅ Converted: {len(converted_metadata)}")
 print(f"❌ Skipped: {skipped_count}")
 
-output_path = 'wikiart_metadata_with_pretraining_groundtruth.json'
+output_path = os.path.join(BASE_DIR, 'paintings_metadata_with_rough_groundtruth.json')
 with open(output_path, 'w', encoding="utf-8") as f:
     json.dump(converted_metadata, f, ensure_ascii=False, indent=4)
 
