@@ -17,28 +17,29 @@
 # ---
 
 # %%
+# global constants
 MOVEMENT_DIM = 6
 GENRE_DIM = 6
 STYLE_DIM = 6
-PRETRAINING = True
+PRELIM_TRAINING = True
 
 
 # %%
-# get the images
-from PIL import Image, ImageOps
-import os, json, torch
+import torch
 from pathlib import Path
 
 MAIN_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 VISION_DEVICE = MAIN_DEVICE
-try:  # Check if running in Colab
+try:
+    # check if running from laptop
     BASE_DIR = Path(__file__).resolve().parent  # works in scripts
-    print("running from laptop, probably")
+    print("likely running on laptop")
     VISION_DEVICE = "cpu" # not even GPU mem on laptop
-    PRETRAINING = False # we are not doing pretraining rn
+    PRELIM_TRAINING = False # not prelim training on laptop
 except NameError:
-    BASE_DIR = Path.cwd()  # fallback for notebooks
-    print("running from IDAS, probably")
+    # __file__ is not defined on IDAS
+    BASE_DIR = Path.cwd()
+    print("likely running on IDAS")
 
 imgs_directory_path = BASE_DIR / "paintings"
 pretraining_metadata = BASE_DIR / "metadata" / "paintings_metadata_with_rough_groundtruth.json"
@@ -48,7 +49,6 @@ import os
 import glob
 
 def get_latest_checkpoint(checkpoint_dir=os.path.join(BASE_DIR, "checkpoints")):
-    """Return the latest checkpoint path by modified time, or None if none exist."""
     checkpoint_files = glob.glob(os.path.join(checkpoint_dir, "model_*.pt"))
     if not checkpoint_files:
         return None
@@ -57,13 +57,6 @@ def get_latest_checkpoint(checkpoint_dir=os.path.join(BASE_DIR, "checkpoints")):
     return checkpoint_files[-1]
 
 def load_model_from_latest(model):
-    """
-    Load state dict into model (for the custom nested format).
-    
-    Args:
-        model: BLIP2MultiHeadRegression model instance
-        state_dict_path: Path to .pt file with state dict
-    """
     latest_check_point = get_latest_checkpoint()
     if latest_check_point is None:
         print("No checkpoint found. Starting from scratch.")
@@ -75,30 +68,23 @@ def load_model_from_latest(model):
     model.genre_head.load_state_dict(state_dict["genre_head"])
     model.style_head.load_state_dict(state_dict["style_head"])
     
-    # Load Q-Former if it was saved
     if "qformer" in state_dict:
         model.blip2.qformer.load_state_dict(state_dict["qformer"])
         print(" Loaded Q-Former weights")
     
     print(f" Loaded weights from {latest_check_point}")
 
+
 # %%
-
-
-# --- Import libraries ---
 from transformers import Blip2Processor, Blip2ForConditionalGeneration
-import torch
 
-# --- Load BLIP-2 model and processor ---
 model_name = "Salesforce/blip2-flan-t5-xl"
 local_model_path =  BASE_DIR / "blip2_model"
 
 if os.path.exists(local_model_path):
     print("Loading model from local directory...")
     processor = Blip2Processor.from_pretrained(local_model_path, use_fast=True)
-    print("Processor loaded")
     blip2 = Blip2ForConditionalGeneration.from_pretrained(local_model_path)
-    print("Model loaded")
 else:
     print("Downloading model from Hugging Face...")
     processor = Blip2Processor.from_pretrained(model_name, use_fast=True)
@@ -108,6 +94,7 @@ else:
     processor.save_pretrained(local_model_path)
     blip2.save_pretrained(local_model_path)
 
+print("model and processor loaded")
 blip2.to(VISION_DEVICE)  # Load model on CPU first if on computer
 print(f"model sent to {VISION_DEVICE}")
 
@@ -120,14 +107,67 @@ for param in blip2.vision_model.parameters():
 import os
 import json
 import random
-import numpy as np
-from PIL import Image
+
+def get_split( total_length: int, test_percentage: float = 0.2, 
+              split_file: str = BASE_DIR/"data_split.json", seed: int = 42,):
+    """
+    Create or load a consistent train/test split for a dataset of a given size.
+    A split is saved/loaded based on the total_length of the dataset.
+
+    Args:
+        total_length (int): Total number of samples/images.
+        test_percentage (float): Fraction of samples to use for testing.
+        split_file (str): JSON file path to store splits.
+        seed (int): Random seed for reproducibility.
+
+    Returns:
+        (train_indices, test_indices): Two lists of indices.
+    """
+    if os.path.exists(split_file):
+        with open(split_file, "r") as f:
+            all_splits = json.load(f)
+    else:
+        all_splits = {}
+
+    key = str(total_length)
+
+    if key in all_splits:
+        split_data = all_splits[key]
+        print(f"Loaded existing split for length {total_length}: "
+              f"{len(split_data['train'])} train, {len(split_data['test'])} test")
+        return split_data["train"], split_data["test"]
+
+    # Otherwise, generate a new split
+    random.seed(seed)
+    indices = list(range(total_length))
+    random.shuffle(indices)
+    num_test = int(total_length * test_percentage)
+    test_indices = indices[:num_test]
+    train_indices = indices[num_test:]
+
+    all_splits[key] = {
+        "train": train_indices,
+        "test": test_indices
+    }
+    with open(split_file, "w") as f:
+        json.dump(all_splits, f, indent=2)
+
+    print(f"Created new split for length {total_length}: "
+          f"{len(train_indices)} train, {len(test_indices)} test → saved to {split_file}")
+    return train_indices, test_indices
+
+
+
+# %%
+# creating dataloaders for lazying loading images and targets
+# there are simply too many images to fit in memory at once
+import os
+import json
+import random
 import torch
 from torch.utils.data import Dataset, DataLoader
 
-
 class PaintingDataset(Dataset):
-    """Proper PyTorch Dataset for painting images and targets"""
     def __init__(self, image_paths, targets):
         self.image_paths = image_paths
         self.targets = targets
@@ -138,36 +178,19 @@ class PaintingDataset(Dataset):
     def __getitem__(self, idx):
         path = self.image_paths[idx]
         target = self.targets[idx]
-        # Convert target list to tensor
         target_tensor = torch.tensor(target, dtype=torch.float32)
         return path, target_tensor
 
-
 def collate_fn(batch):
-    """
-    Custom collate function for DataLoader.
-    batch: list of (path, target_tensor) tuples
-    Returns: (list of paths, stacked targets tensor [batch_size, 12])
-    """
+    # need a collate function because torch doesn't work well with lists of strings
     paths, targets = zip(*batch)
     targets_tensor = torch.stack(targets)
     return list(paths), targets_tensor
 
-
-def create_train_test_loaders(
-    imgs_directory_path, 
-    pretraining_metadata_path, 
-    batch_size_train=32, 
-    batch_size_test=32, 
-    test_percentage=0.1,
-):
-    """Create dataloaders that return IMAGE PATHS and properly stacked TARGETS."""
+def create_train_test_loaders( imgs_directory_path, pretraining_metadata_path, 
+                              batch_size_train=32, batch_size_test=32, test_percentage=0.1):
+    print("="*80, "LOADING DATASET", "="*80)
     
-    print("="*80)
-    print("LOADING DATASET")
-    print("="*80)
-    
-    # --- Scan folder for images ---
     image_paths = []
     image_ids = []
     all_files = sorted(os.listdir(imgs_directory_path))
@@ -178,61 +201,46 @@ def create_train_test_loaders(
             image_paths.append(path)
             # Extract ID from filename (first part before underscore)
             image_ids.append(file_name.split("_")[0])
-    
     print(f"Found {len(image_paths)} image files in {imgs_directory_path}")
     
-    # --- Load metadata ---
     with open(pretraining_metadata_path, 'r', encoding="utf-8") as f:
         metadata = json.load(f)
     print(f"Loaded metadata for {len(metadata)} paintings")
     
-    # --- Match images with valid targets ---
     targets = []
     valid_paths = []
     matched_count = 0
-    
     for path, img_id in zip(image_paths, image_ids):
         if img_id in metadata and "rough_groundtruth" in metadata[img_id]:
             target = metadata[img_id]["rough_groundtruth"]
             targets.append(target)
             valid_paths.append(path)
             matched_count += 1
-    
-    print(f"Matched {matched_count}/{len(image_paths)} images with valid targets")
-    
     if matched_count == 0:
         raise ValueError("No images matched with metadata! Check your image IDs and metadata format.")
-    
-    # --- Verify target dimensions ---
+    else:
+        print(f"Matched {matched_count}/{len(image_paths)} images with valid targets")
+
+    # ensuring all targets have the same dimension
     first_target = targets[0]
     target_dim = len(first_target)
-    print(f"Target dimension: {target_dim}")
     for i, t in enumerate(targets[:3]):
         if len(t) != target_dim:
             raise ValueError(f"Inconsistent target dimensions: image {i} has {len(t)}, expected {target_dim}")
     
-    # --- Split train/test ---
+    # split into train and test sets
     num_images = len(valid_paths)
-    num_test = int(num_images * test_percentage)
-    indices = list(range(num_images))
-    random.shuffle(indices)
-    test_indices = set(indices[:num_test])
+    train_indices, test_indices = get_split(total_length=num_images, test_percentage=test_percentage)
+
+    train_paths = [valid_paths[i] for i in train_indices]
+    train_targets = [targets[i] for i in train_indices]
+    test_paths = [valid_paths[i] for i in test_indices]
+    test_targets = [targets[i] for i in test_indices]
+    print(f"\nTrain: {len(train_paths)} images, Test: {len(test_paths)} images")
     
-    train_paths = [valid_paths[i] for i in range(num_images) if i not in test_indices]
-    train_targets = [targets[i] for i in range(num_images) if i not in test_indices]
-    test_paths = [valid_paths[i] for i in range(num_images) if i in test_indices]
-    test_targets = [targets[i] for i in range(num_images) if i in test_indices]
-    
-    print(f"\nTrain: {len(train_paths)} images")
-    print(f"Test: {len(test_paths)} images")
-    print(f"Sample train path: {train_paths[0]}")
-    print(f"Sample train target: {train_targets[0]}")
-    
-    # --- Create Dataset objects ---
     train_dataset = PaintingDataset(train_paths, train_targets)
     test_dataset = PaintingDataset(test_paths, test_targets)
     
-    # --- Create DataLoaders with custom collate function ---
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size_train,
@@ -248,35 +256,9 @@ def create_train_test_loaders(
         num_workers=0,
         collate_fn=collate_fn
     )
-    
-    # --- Verify DataLoader output ---
-    print("\n" + "="*80)
-    print("VERIFYING DATALOADER OUTPUT")
-    print("="*80)
-    
-    for batch_idx, (image_paths_batch, targets_batch) in enumerate(train_loader):
-        print(f"\nBatch {batch_idx}:")
-        print(f"  image_paths: {len(image_paths_batch)} items (type: {type(image_paths_batch)})")
-        print(f"  targets: {targets_batch.shape} (type: {type(targets_batch)})")
-        print(f"  targets dtype: {targets_batch.dtype}")
-        print(f"  targets range: [{targets_batch.min():.2f}, {targets_batch.max():.2f}]")
-        print(f"  First path: {image_paths_batch[0]}")
-        print(f"  First target: {targets_batch[0]}")
-        
-        if batch_idx >= 1:
-            break
-    
-    print("\n DataLoader verification complete!")
-    print("="*80)
-    
     return train_loader, test_loader
 
-
-# ============================================================================
-# USAGE
-# ============================================================================
-
-if PRETRAINING:
+if PRELIM_TRAINING:
     train_loader, test_loader = create_train_test_loaders(
         imgs_directory_path=imgs_directory_path,
         pretraining_metadata_path=pretraining_metadata,
@@ -492,7 +474,7 @@ def augment_batch(image_paths, targets, processor):
     # Iterate by index since targets is a tensor
     for idx in range(len(image_paths)):
         img_path = image_paths[idx]
-        target = targets[idx]  # Get row from tensor
+        target = targets[idx]
         
         try:
             img = Image.open(img_path).convert("RGB")
@@ -522,8 +504,30 @@ def augment_batch(image_paths, targets, processor):
 
 
 # %%
+def test_epoch(model, dataloader, criterion, device, processor):
+    model.eval()
+    total_loss = 0.0
+    
+    with torch.no_grad():
+        for image_paths, targets in dataloader:
+            # Augment the batch (same as training for consistency)
+            pixel_values, targets_tensor = augment_batch(image_paths, targets, processor)
+            
+            pixel_values = pixel_values.to(device, non_blocking=True)
+            targets_tensor = targets_tensor.to(device, non_blocking=True)
+            
+            predictions = model(pixel_values)
+            loss, _ = criterion(predictions, targets_tensor)
+            total_loss += loss.item()
+    
+    avg_loss = total_loss / len(dataloader)
+    print(f"Validation complete | Avg Loss: {avg_loss:.4f}")
+    return avg_loss
+
+
+# %%
 import time
-def train_epoch(model, dataloader, optimizer, criterion, device, processor):
+def train_epoch(model, dataloader, optimizer, criterion, device, processor, val_loader=None):
     model.train()
     total_loss = 0.0
     start_time = time.time()
@@ -553,9 +557,13 @@ def train_epoch(model, dataloader, optimizer, criterion, device, processor):
         images_processed += len(pixel_values)
         
         if step % 10 == 0:
-        # if True:
             print(f"Step {step + 1}/{len(dataloader)} | Images: {images_processed} | Time: {time_elapsed:.2f}s | Loss: {loss.item():.4f}")
             # print_gpu_mem()
+        
+        # the data size is large enough that we want to validate more than once per epoch to prevent overfitting
+        if val_loader is not None and (step + 1) % 100 == 0:
+            val_loss = test_epoch(model, val_loader, criterion, device, processor)
+            print(f" Validation Loss after {step + 1} steps: {val_loss:.4f}")
         
     num_batches = len(dataloader)
     total_images = num_batches * dataloader.batch_size * 2  # *2 for augmentation
@@ -565,29 +573,6 @@ def train_epoch(model, dataloader, optimizer, criterion, device, processor):
     print(f"Epoch complete | Avg Loss: {avg_loss:.4f} | Total images: {total_images} | Time: {epoch_time:.2f}s")
     
     return avg_loss
-
-
-# %%
-def test_epoch(model, dataloader, criterion, device, processor):
-    model.eval()
-    total_loss = 0.0
-    
-    with torch.no_grad():
-        for image_paths, targets in dataloader:
-            # Augment the batch (same as training for consistency)
-            pixel_values, targets_tensor = augment_batch(image_paths, targets, processor)
-            
-            pixel_values = pixel_values.to(device, non_blocking=True)
-            targets_tensor = targets_tensor.to(device, non_blocking=True)
-            
-            predictions = model(pixel_values)
-            loss, _ = criterion(predictions, targets_tensor)
-            total_loss += loss.item()
-    
-    avg_loss = total_loss / len(dataloader)
-    print(f"Validation complete | Avg Loss: {avg_loss:.4f}")
-    return avg_loss
-
 
 # %%
 from datetime import datetime
@@ -681,16 +666,10 @@ def train_model(model, train_loader, val_loader, optimizer, criterion, device, p
 
 
 # %%
+# the preliminary training is done with hard WikiArt labels for movement and genre only
+def preliminary_training():
+    print("="*60 + "PRELIMINARY TRAINING" + "="*60)
 
-def pretrain_model():
-    """
-    Pretrain the model without style head.
-    """
-    print("="*60)
-    print("PRETRAINING MODE (no style head)")
-    print("="*60)
-    
-    # Model setup
     pretrain_model = BLIP2MultiHeadRegression(
         blip2,
         use_style_head=False,
@@ -699,7 +678,6 @@ def pretrain_model():
     )
     load_model_from_latest(pretrain_model)
     
-    # Loss and optimizer
     pretrain_criterion = WeightedMultiHeadLoss(
         movement_weight=1.0,
         genre_weight=1.0,
@@ -712,7 +690,6 @@ def pretrain_model():
         weight_decay=0.01  # Added weight decay for regularization
     )
     
-    # Learning rate scheduler (optional but recommended)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer,
         mode='min',
@@ -721,7 +698,6 @@ def pretrain_model():
         min_lr=1e-6
     )
     
-    # Save directory
     save_dir = BASE_DIR / "checkpoints"
     save_dir.mkdir(exist_ok=True, parents=True)
     
@@ -750,8 +726,8 @@ def pretrain_model():
     return history
 
 
-if PRETRAINING:
-    pretrain_model()
+if PRELIM_TRAINING:
+    preliminary_training()
 
 
 # %%
@@ -841,5 +817,3 @@ def backward_single_image(image, target, lr=1e-5):
 
     return loss.item(), loss_dict
 
-
-# %%
