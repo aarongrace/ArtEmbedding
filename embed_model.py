@@ -17,65 +17,52 @@
 # ---
 
 # %%
-# global constants
-MOVEMENT_DIM = 6
-GENRE_DIM = 6
-STYLE_DIM = 6
-PRELIM_TRAINING = True
-
+# determine platform from .env file
+try:
+    with open(".env", "r") as f:
+        for line in f:
+            key, value = line.strip().split("=")
+            if key == "PLATFORM":
+                PLATFORM = value
+    print(f"Running on platform: {PLATFORM}")
+except FileNotFoundError:
+    PLATFORM = "PC"
+    print("No .env file found. Defaulting to PC platform.")
 
 # %%
+# configure global variables based on platform
 import torch
 from pathlib import Path
 
-MAIN_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-VISION_DEVICE = MAIN_DEVICE
-try:
-    # check if running from laptop
-    BASE_DIR = Path(__file__).resolve().parent  # works in scripts
-    print("likely running on laptop")
-    VISION_DEVICE = "cpu" # not even GPU mem on laptop
+if PLATFORM == "PC":
+    VISION_DEVICE = "cpu" # not enough GPU memory on laptop for full vision model
+    MAIN_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     PRELIM_TRAINING = False # not prelim training on laptop
-except NameError:
-    # __file__ is not defined on IDAS
-    BASE_DIR = Path.cwd()
-    print("likely running on IDAS")
 
-imgs_directory_path = BASE_DIR / "paintings"
-pretraining_metadata = BASE_DIR / "metadata" / "paintings_metadata_with_rough_groundtruth.json"
+elif PLATFORM == "IDAS":
+    if not torch.cuda.is_available():
+        raise EnvironmentError("CUDA is not available on IDAS. Please restart with GPU access.")
+    VISION_DEVICE = "cuda"
+    MAIN_DEVICE = "cuda"
+    PRELIM_TRAINING = True
+else:
+    raise ValueError(f"Unknown PLATFORM: {PLATFORM}")
+
+print(f"Vision device: {VISION_DEVICE}, Main device: {MAIN_DEVICE}, Prelim training: {PRELIM_TRAINING}")
+BASE_DIR = Path.cwd()
+IMGS_DIR = BASE_DIR / "paintings"
+PRELIM_METADATA_DIR = BASE_DIR / "metadata" / "paintings_metadata_with_rough_groundtruth.json"
+CHECKPOINTS_DIR = BASE_DIR / "checkpoints"
+print(f"Base directory: {BASE_DIR}")
+
+# vector dimensions
+MOVEMENT_DIM = 6
+GENRE_DIM = 6
+STYLE_DIM = 6
 
 # %%
+# load BLIP2 model and processor
 import os
-import glob
-
-def get_latest_checkpoint(checkpoint_dir=os.path.join(BASE_DIR, "checkpoints")):
-    checkpoint_files = glob.glob(os.path.join(checkpoint_dir, "model_*.pt"))
-    if not checkpoint_files:
-        return None
-    # Sort by modification time
-    checkpoint_files.sort(key=os.path.getmtime)
-    return checkpoint_files[-1]
-
-def load_model_from_latest(model):
-    latest_check_point = get_latest_checkpoint()
-    if latest_check_point is None:
-        print("No checkpoint found. Starting from scratch.")
-        return
-    state_dict = torch.load(latest_check_point, map_location='cpu')
-    
-    model.shared_features.load_state_dict(state_dict["shared_features"])
-    model.movement_head.load_state_dict(state_dict["movement_head"])
-    model.genre_head.load_state_dict(state_dict["genre_head"])
-    model.style_head.load_state_dict(state_dict["style_head"])
-    
-    if "qformer" in state_dict:
-        model.blip2.qformer.load_state_dict(state_dict["qformer"])
-        print(" Loaded Q-Former weights")
-    
-    print(f" Loaded weights from {latest_check_point}")
-
-
-# %%
 from transformers import Blip2Processor, Blip2ForConditionalGeneration
 
 model_name = "Salesforce/blip2-flan-t5-xl"
@@ -104,10 +91,60 @@ for param in blip2.vision_model.parameters():
 
 
 # %%
+# checkpoint functions
+import os
+import glob
+
+def get_latest_checkpoint():
+    checkpoint_files = glob.glob(os.path.join(CHECKPOINTS_DIR, "model_*.pt"))
+    if not checkpoint_files:
+        return None
+    # Sort by modification time
+    checkpoint_files.sort(key=os.path.getmtime)
+    return checkpoint_files[-1]
+
+# as we are not training the vision model, load only the relevant parts
+def load_model_from_latest(model):
+    latest_check_point = get_latest_checkpoint()
+    if latest_check_point is None:
+        print("No checkpoint found. Starting from scratch.")
+        return
+    state_dict = torch.load(latest_check_point, map_location='cpu')
+    
+    model.shared_features.load_state_dict(state_dict["shared_features"])
+    model.movement_head.load_state_dict(state_dict["movement_head"])
+    model.genre_head.load_state_dict(state_dict["genre_head"])
+    model.style_head.load_state_dict(state_dict["style_head"])
+    
+    if "qformer" in state_dict:
+        model.blip2.qformer.load_state_dict(state_dict["qformer"])
+        print(" Loaded Q-Former weights")
+    
+    print(f" Loaded weights from {latest_check_point}")
+
+
+def save_progress(model, file_name):
+    checkpoint_file = os.path.join(CHECKPOINTS_DIR, f"{file_name}.pt")
+
+    state_dict = {
+        "shared_features": model.shared_features.state_dict(),
+        "movement_head": model.movement_head.state_dict(),
+        "genre_head": model.genre_head.state_dict(),
+        "style_head": model.style_head.state_dict(),
+    }
+    # Optionally include Q-Former if it's being trained
+    if any(p.requires_grad for p in model.blip2.qformer.parameters()):
+        state_dict["qformer"] = model.blip2.qformer.state_dict()
+        
+    torch.save(state_dict, checkpoint_file)
+    print(f" Saved fine-tuned modules to: {checkpoint_file}")
+
+
+# %%
+# load/create persistent train/test split
 import os
 import json
 import random
-
 def get_split( total_length: int, test_percentage: float = 0.2, 
               split_file: str = BASE_DIR/"data_split.json", seed: int = 42,):
     """
@@ -159,11 +196,10 @@ def get_split( total_length: int, test_percentage: float = 0.2,
 
 
 # %%
-# creating dataloaders for lazying loading images and targets
-# there are simply too many images to fit in memory at once
+# dataloader creation for preliminary training; lazy loading is neeeded due to dataset size
+# only necessary for preliminary training, as FastAPI backend provides experted annotated data
 import os
 import json
-import random
 import torch
 from torch.utils.data import Dataset, DataLoader
 
@@ -181,16 +217,16 @@ class PaintingDataset(Dataset):
         target_tensor = torch.tensor(target, dtype=torch.float32)
         return path, target_tensor
 
+# need a collate function because torch doesn't work well with lists of strings
 def collate_fn(batch):
-    # need a collate function because torch doesn't work well with lists of strings
     paths, targets = zip(*batch)
     targets_tensor = torch.stack(targets)
     return list(paths), targets_tensor
 
+
 def create_train_test_loaders( imgs_directory_path, pretraining_metadata_path, 
                               batch_size_train=32, batch_size_test=32, test_percentage=0.1):
     print("="*80, "LOADING DATASET", "="*80)
-    
     image_paths = []
     image_ids = []
     all_files = sorted(os.listdir(imgs_directory_path))
@@ -260,16 +296,16 @@ def create_train_test_loaders( imgs_directory_path, pretraining_metadata_path,
 
 if PRELIM_TRAINING:
     train_loader, test_loader = create_train_test_loaders(
-        imgs_directory_path=imgs_directory_path,
-        pretraining_metadata_path=pretraining_metadata,
+        imgs_directory_path=IMGS_DIR,
+        pretraining_metadata_path=PRELIM_METADATA_DIR,
         batch_size_train=32,
         batch_size_test=32,
         test_percentage=0.1,
     )
 
+
 # %%
-
-
+# GPU memory monitoring utility
 def print_gpu_mem(prefix="GPU"):
     if torch.cuda.is_available():
         allocated = torch.cuda.memory_allocated() / 1024**2   # MB
@@ -280,8 +316,7 @@ def print_gpu_mem(prefix="GPU"):
 
 
 # %%
-
-
+# Multi-head regression model
 import torch
 import torch.nn as nn
 
@@ -395,6 +430,9 @@ class BLIP2MultiHeadRegression(nn.Module):
         return outputs
 
 
+
+# %%
+# Multi-head weighted loss function
 class WeightedMultiHeadLoss(nn.Module):
     def __init__(self, movement_weight=1.0, genre_weight=1.0, style_weight=1.0, use_style=True):
         super().__init__()
@@ -448,6 +486,7 @@ class WeightedMultiHeadLoss(nn.Module):
 
 
 # %%
+# augmentation function for preliminary training
 from PIL import Image, ImageOps, UnidentifiedImageError, ImageFile
 import numpy as np
 import torch
@@ -504,6 +543,8 @@ def augment_batch(image_paths, targets, processor):
 
 
 # %%
+# training and testing epoch functions
+import time
 def test_epoch(model, dataloader, criterion, device, processor):
     model.eval()
     total_loss = 0.0
@@ -524,9 +565,6 @@ def test_epoch(model, dataloader, criterion, device, processor):
     print(f"Validation complete | Avg Loss: {avg_loss:.4f}")
     return avg_loss
 
-
-# %%
-import time
 def train_epoch(model, dataloader, optimizer, criterion, device, processor, val_loader=None):
     model.train()
     total_loss = 0.0
@@ -575,121 +613,39 @@ def train_epoch(model, dataloader, optimizer, criterion, device, processor, val_
     return avg_loss
 
 # %%
-from datetime import datetime
-import os
-def save_progress(model, save_path):
-
-    os.makedirs(save_path, exist_ok=True)
-    time_str = datetime.now().strftime("%Y%m%d_%H%M%S")  # e.g., 20251013_170512
-    checkpoint_file = os.path.join(save_path, f"model_{time_str}.pt")
-
-    state_dict = {
-        "shared_features": model.shared_features.state_dict(),
-        "movement_head": model.movement_head.state_dict(),
-        "genre_head": model.genre_head.state_dict(),
-        "style_head": model.style_head.state_dict(),
-    }
-
-    # Optionally include Q-Former if it's being trained
-    if any(p.requires_grad for p in model.blip2.qformer.parameters()):
-        state_dict["qformer"] = model.blip2.qformer.state_dict()
-        
-    torch.save(state_dict, checkpoint_file)
-    print(f" Saved fine-tuned modules to: {checkpoint_file}")
-
-
-# %%
-def train_model(model, train_loader, val_loader, optimizer, criterion, device, processor, 
-                num_epochs=10, save_path=None, scheduler=None, early_stopping_patience=None):
-    print("Starting training")
-    
-    history = {
-        "train_loss": [],
-        "val_loss": [],
-        "learning_rates": []
-    }
-    
-    best_val_loss = float('inf')
-    epochs_without_improvement = 0
-    
-    for epoch in range(1, num_epochs + 1):
-        print(f"\n{'='*60}")
-        print(f"Epoch {epoch}/{num_epochs}")
-        if scheduler:
-            current_lr = optimizer.param_groups[0]['lr']
-            print(f"Learning rate: {current_lr:.2e}")
-            history["learning_rates"].append(current_lr)
-        print(f"{'='*60}")
-        
-        # Training
-        train_loss = train_epoch(model, train_loader, optimizer, criterion, device, processor)
-        history["train_loss"].append(train_loss)
-        
-        # Validation
-        if val_loader is not None:
-            val_loss = test_epoch(model, val_loader, criterion, device, processor)
-            history["val_loss"].append(val_loss)
-            
-            # Check for improvement
-            if val_loss < best_val_loss:
-                best_val_loss = val_loss
-                epochs_without_improvement = 0
-            else:
-                epochs_without_improvement += 1
-                print(f"No improvement for {epochs_without_improvement} epoch(s)")
-            
-            # Early stopping
-            if early_stopping_patience and epochs_without_improvement >= early_stopping_patience:
-                print(f"\nEarly stopping triggered after {epoch} epochs")
-                print(f"Best validation loss: {best_val_loss:.4f}")
-                break
-            
-            # Learning rate scheduling
-            if scheduler:
-                if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
-                    scheduler.step(val_loss)
-                else:
-                    scheduler.step()
-        
-            if save_path is not None:
-                save_progress(model, save_path)
-
-    
-    print("\n" + "="*60)
-    print("Training complete")
-    if val_loader is not None:
-        print(f"Best validation loss: {best_val_loss:.4f}")
-    print("="*60)
-    
-    return history
-
-
-
-# %%
-# the preliminary training is done with hard WikiArt labels for movement and genre only
-def preliminary_training():
+# preliminary training function
+import torch, json
+def run_preliminary_training(
+    blip2,
+    processor,
+    train_loader,
+    test_loader,
+    num_epochs=5,
+    early_stopping_patience=2
+):
     print("="*60 + "PRELIMINARY TRAINING" + "="*60)
 
-    pretrain_model = BLIP2MultiHeadRegression(
+    # ---------------- Model setup ----------------
+    model = BLIP2MultiHeadRegression(
         blip2,
         use_style_head=False,
         train_qformer=True,
         train_vision=False
     )
-    load_model_from_latest(pretrain_model)
-    
-    pretrain_criterion = WeightedMultiHeadLoss(
+    load_model_from_latest(model)
+
+    criterion = WeightedMultiHeadLoss(
         movement_weight=1.0,
         genre_weight=1.0,
         use_style=False
     ).to(MAIN_DEVICE)
-    
+
     optimizer = torch.optim.AdamW(
-        pretrain_model.parameters(),
+        model.parameters(),
         lr=1e-5,
-        weight_decay=0.01  # Added weight decay for regularization
+        weight_decay=0.01
     )
-    
+
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer,
         mode='min',
@@ -697,42 +653,74 @@ def preliminary_training():
         patience=3,
         min_lr=1e-6
     )
-    
-    save_dir = BASE_DIR / "checkpoints"
-    save_dir.mkdir(exist_ok=True, parents=True)
-    
-    # Train
-    history = train_model(
-        model=pretrain_model,
-        train_loader=train_loader,
-        val_loader=test_loader,
-        optimizer=optimizer,
-        criterion=pretrain_criterion,
-        device=MAIN_DEVICE,
-        processor=processor,
-        num_epochs=5,
-        save_path=save_dir,
-        scheduler=scheduler,
-        early_stopping_patience=5  # Stop if no improvement for 5 epochs
-    )
-    
-    # Save final history
-    import json
-    history_path = save_dir / "training_history.json"
+
+    # ---------------- Training loop ----------------
+    history = {"train_loss": [], "val_loss": [], "learning_rates": []}
+    best_val_loss = float('inf')
+    epochs_without_improvement = 0
+
+    for epoch in range(1, num_epochs + 1):
+        print(f"\n{'='*60}")
+        print(f"Epoch {epoch}/{num_epochs}")
+        current_lr = optimizer.param_groups[0]['lr']
+        print(f"Learning rate: {current_lr:.2e}")
+        history["learning_rates"].append(current_lr)
+        print(f"{'='*60}")
+
+        # --- Training ---
+        train_loss = train_epoch(model, train_loader, optimizer, criterion, MAIN_DEVICE, processor)
+        history["train_loss"].append(train_loss)
+
+        # --- Validation ---
+        val_loss = test_epoch(model, test_loader, criterion, MAIN_DEVICE, processor)
+        history["val_loss"].append(val_loss)
+
+        # --- Improvement tracking ---
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            epochs_without_improvement = 0
+        else:
+            epochs_without_improvement += 1
+            print(f"No improvement for {epochs_without_improvement} epoch(s)")
+
+        # --- Early stopping ---
+        if early_stopping_patience and epochs_without_improvement >= early_stopping_patience:
+            print(f"\nEarly stopping triggered after {epoch} epochs")
+            print(f"Best validation loss: {best_val_loss:.4f}")
+            break
+
+        # --- Scheduler update ---
+        scheduler.step(val_loss)
+
+        # --- Save progress ---
+        file_name = f"model_epoch_{epoch}_valLoss_{val_loss:.4f}"
+        save_progress(model, file_name)
+
+    # ---------------- Wrap up ----------------
+    print("\n" + "="*30, "TRAINING COMPLETE", "="*30)
+    print(f"Best validation loss: {best_val_loss:.4f}")
+    print("="*60)
+
+    # Save history
+    history_path = CHECKPOINTS_DIR / "training_history.json"
     with open(history_path, 'w') as f:
         json.dump(history, f, indent=2)
     print(f"\nTraining history saved to {history_path}")
-    
+
     return history
 
-
 if PRELIM_TRAINING:
-    preliminary_training()
-
+    history = run_preliminary_training(
+        blip2,
+        processor,
+        train_loader,
+        test_loader,
+        num_epochs=5,
+        early_stopping_patience=5
+    )
 
 # %%
-
-
+# web access functions
 import torch
 from transformers import Blip2Processor
 from augmentation import augment_annotated_images
