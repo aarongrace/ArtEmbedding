@@ -1,0 +1,103 @@
+body {
+    width: 20rem;
+    font-family: Arial, sans-serif;
+    margin: 0px;
+    padding: 0px 10px 15px 15px;
+    background-color: #f4f4f4;
+    border-radius: 15px;
+}
+
+ul {
+    list-style-type: none;
+    padding-inline-start: 0;
+    margin: 1rem 0;
+}
+
+li {
+    padding: 0.25rem;
+}
+li:nth-child(odd) {
+    background: #80808030;
+}
+li:nth-child(even) {
+    background: #ffffff;
+}
+
+h3 {
+    margin: 0;
+}
+
+p {
+    margin: 0;
+    font-size: 7pt;
+}
+
+.assignment-info {
+    font-size: large;
+}
+
+#status {
+    color: red;
+    font-weight: bold;
+    margin: 10px;
+}
+
+#assignment-id, #assignment-name {
+    display: block;
+    margin: 10px;
+    font-size: 16px;
+    color: #333;
+}
+
+/* Add styles for the div with id tabs */
+#tabs {
+    background-color: #e0e0e0;
+    padding: 10px;
+    border: 1px solid #ccc;
+    margin: 10px;
+    border-radius: 5px;
+}
+
+button {
+    display: block;
+    margin: 10px 0;
+    padding: 10px;
+    font-size: 14px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+#designate-div {
+    display: none;
+    margin: 10px 0;
+}
+
+#select-assignment {
+    width: 100%;
+    padding: 5px;
+    margin: 10px 0;
+    font-size: 14px;
+}
+
+#overwrite-button, #add-button {
+    display: inline-block;
+    margin: 5px;
+    padding: 10px;
+    font-size: 14px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#overwrite-button:hover, #add-button:hover {
+    background-color: #218838;
+}

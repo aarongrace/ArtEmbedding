@@ -1,0 +1,52 @@
+/* Container for the guide page */
+.guide-container {
+  height: 100vh; /* Full viewport height */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #f4e4c1; /* Light beige background */
+  color: #333; /* Dark text color */
+  padding: 2rem;
+  text-align: center;
+}
+
+/* Title styling */
+.guide-title {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  color: #7c691f; /* Earthy brown color */
+}
+
+/* Description styling */
+.guide-description {
+  font-size: 1.2rem;
+  margin-bottom: 1.5rem;
+  max-width: 600px;
+  line-height: 1.6;
+}
+
+/* List styling */
+.guide-list {
+  list-style-type: disc;
+  margin: 1rem 0;
+  padding-left: 1.5rem;
+  text-align: left;
+  max-width: 600px;
+}
+
+/* Back button styling */
+.guide-back-button {
+  margin-top: 2rem;
+  padding: 0.75rem 1.5rem;
+  background-color: #4caf50; /* Green background */
+  color: #fff; /* White text */
+  text-decoration: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  transition: background-color 0.3s ease;
+}
+
+.guide-back-button:hover {
+  background-color: #388e3c; /* Darker green on hover */
+}

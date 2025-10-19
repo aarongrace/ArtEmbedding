@@ -1,0 +1,17 @@
+Balance:
+This refers to whether the image is equally weighted on the left and right, and to a lesser extent on the top and bottom. Basically, does this image feel like it's tilting to one side
+
+Complexity:
+How many different objects are in the image? How detailed are they? In other words, how busy is the painting?
+
+Emotionality:
+Does the painting portray or inspire strong emotions? This is subjective, obviously
+
+Dynamic:
+Does the painting portray dynamic gestures? Does it appear full of movement?
+
+Naturalistic:
+How much does the painting look like a photo?
+
+Texture:
+How rough or smooth is the painting's texture? Did the artist employ a lot of brustrokes?

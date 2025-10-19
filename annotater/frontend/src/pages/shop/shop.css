@@ -1,0 +1,168 @@
+/* Container for the store page */
+.store-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #f4e4c1; /* Light beige background */
+  color: #333; /* Dark text color */
+  padding: 2rem;
+  text-align: center;
+}
+
+/* Title styling */
+.store-title {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  color: #7c691f; /* Earthy brown color */
+}
+
+/* Description styling */
+.store-description {
+  display: inline-flex;
+  align-items: center;
+  font-size: 1.2rem;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+.store-description img {
+  margin: 0.25rem; /* Space between icon and text */
+}
+
+/* Section styling */
+.store-section {
+  margin-bottom: 2rem;
+  width: 100%;
+  text-align: left;
+}
+
+/* Subtitle styling */
+.store-subtitle {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: #4c4008; /* Darker brown color */
+}
+
+/* List styling */
+.store-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.store-item {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #ccc; /* Add a separator between items */
+}
+
+/* Styling for the item name */
+.store-item-name {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #333;
+  flex: 2;
+  max-width: 30%;
+}
+
+/* Styling for the chitin icon and description */
+.store-item img {
+  vertical-align: middle;
+  margin: 0;
+  padding: 0;
+}
+
+.store-item-description {
+  display: inline-flex;
+  align-items: center;
+  font-size: 1rem;
+  color: #555;
+  margin: 0;
+  border-spacing: 0;
+}
+.store-item-description img {
+  width: 40px; /* Adjust the size of the chitin icon */
+  height: 40px; /* Adjust the size of the chitin icon */
+  margin: 0.5rem; /* Space between icon and text */
+}
+
+/* Buy button styling */
+.store-buy-button {
+  padding: 0.5rem 1rem;
+  background-color: #4caf50; /* Green background */
+  color: #fff; /* White text */
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.store-buy-button:hover {
+  background-color: #388e3c; /* Darker green on hover */
+}
+
+.store-buy-button:disabled {
+  background-color: #ccc; /* Gray background for disabled button */
+  cursor: not-allowed;
+}
+
+/* Back button styling */
+.store-back-button {
+  margin-top: 2rem;
+  padding: 0.75rem 1.5rem;
+  background-color: #4caf50; /* Green background */
+  color: #fff; /* White text */
+  text-decoration: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  transition: background-color 0.3s ease;
+}
+
+.store-back-button:hover {
+  background-color: #388e3c; /* Darker green on hover */
+}
+
+/* Table styling */
+.store-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.store-table td {
+  padding: 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid #ddd; /* Faint row dividers */
+}
+
+.store-row:nth-child(even) {
+  background-color: #f9f9f9; /* Light gray for alternating rows */
+}
+
+.store-row:nth-child(odd) {
+  background-color: #fff; /* White for alternating rows */
+}
+
+.store-item-name {
+  font-weight: bold;
+  color: #333;
+}
+
+.store-buy-button {
+  padding: 0.5rem 1rem;
+  background-color: #4caf50; /* Green background */
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.store-buy-button:hover {
+  background-color: #388e3c; /* Darker green on hover */
+}

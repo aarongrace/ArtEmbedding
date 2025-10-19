@@ -1,0 +1,134 @@
+:root {
+    --panel-bg-color: #F5F5F5;
+    --header-bg-color: #Bed8C9;
+    --header-hover-bg-color: #C0C0C0;
+    --button-bg-color: #FFFFFF;
+    --border-color: #ADD8E6;
+    --light-border-color: #D3D3D3;
+    --header-text-color: #FFFFFF;
+    --footer-bg-color: #c2daCc; /* Same as header background color */
+    --footer-text-color: #FFFFFF; /* White text for footer */
+    --feedback-bg-color: #4CAF50; /* Green background for feedback message */
+    --feedback-text-color: #FFFFFF; /* White text for feedback message */
+}
+
+.keywords-panel {
+    bottom: 0;
+    height: fit-content;
+    width: fit-content;
+    right: 20%; /* Position to the right */
+    z-index: 4;
+    position: fixed;
+    background-color: var(--panel-bg-color); /* Very light, warm gray background */
+    border-style: solid;
+    border-color: var(--border-color);
+    border-width: 1px; /* Set border width to 1px */
+    padding: 0px; /* Remove padding */
+    text-align: center;
+    margin: 2px;
+    font-size: 18px;
+}
+
+.keywords-header {
+    text-align: center;
+    font-size: 22px;
+    margin: 0px; /* Remove margin */
+    padding: 4px 35px; /* Add padding to the header */
+    background-color: var(--header-bg-color); /* Slightly darker shade of the background color */
+    color: var(--header-text-color); /* White text */
+    font-weight: bold; /* Bold text */
+    border-bottom: 1px solid var(--border-color); /* Thin, darker border */
+    cursor: pointer; /* Change cursor to pointer */
+    position: relative; /* Position relative to allow z-index to work */
+}
+
+.keywords-header:hover {
+    background-color: var(--header-hover-bg-color); /* Slightly darker on hover */
+}
+
+.keywords-arrow {
+    font-size: 20px;
+    font-weight: bold;
+    position: absolute;
+    right: 10px;
+}
+
+.keywords-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.keywords-button {
+    margin: 2px 5px;
+    background-color: var(--button-bg-color); /* Light background color */
+    border: 1px solid var(--light-border-color); /* Light border */
+    padding: 5px; /* Add padding */
+    cursor: pointer; /* Change cursor to pointer */
+    display: block; /* Ensure buttons are stacked vertically */
+    white-space: normal; /* Wrap text */
+}
+
+.keywords-button.dragging {
+    opacity: 0.5;
+}
+
+.keywords-button.drag-over {
+    border: 2px dashed #000;
+}
+
+.keywords-textarea {
+    margin: 2px 5px;
+    background-color: var(--button-bg-color); /* Light background color */
+    border: 1px solid var(--light-border-color); /* Light border */
+    padding: 5px; /* Add padding */
+    text-align: center; /* Center the text */
+    white-space: pre-wrap; /* Wrap text */
+    overflow-wrap: break-word; /* Break long words */
+}
+
+.keywords-footer {
+    text-align: center;
+    margin: 0px; /* Remove margin */
+    padding: 0px 0px; /* Add padding to the footer */
+    background-color: var(--footer-bg-color); /* Same as header background color */
+    font-weight: bold; /* Bold text */
+    border-top: 1px solid var(--border-color); /* Thin, darker border */
+    cursor: pointer; /* Change cursor to pointer */
+    position: relative; /* Position relative to allow z-index to work */
+}
+
+.save-button {
+    color: var(--footer-text-color); /* White text */
+    padding: 0px;
+    font-size: 16px; /* Smaller font size */
+    background-color: transparent; /* Transparent background */
+    border: none; /* Remove border */
+    cursor: pointer; /* Change cursor to pointer */
+}
+
+.feedback-message {
+    background-color: var(--feedback-bg-color); /* Green background */
+    color: var(--feedback-text-color); /* White text */
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 5px;
+    font-size: 16px;
+    text-align: center;
+}
+
+/* Styles for the new entry button */
+.new-entry-button {
+    background-color: #d2ddcd;
+    color: #333;
+    border-radius: 10px;
+    border: none;
+    padding: 2px 5px;
+    margin: 3px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.new-entry-button:hover {
+    background-color: #b0b0b0;
+}

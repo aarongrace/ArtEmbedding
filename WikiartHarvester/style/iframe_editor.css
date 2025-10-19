@@ -1,0 +1,10 @@
+.discussion-info {
+    text-align: center; /* Center the text */
+    font-size: 20px; /* Slightly larger font size */
+    font-weight: bold; /* Bold text */
+    margin: 10px 0; /* Add some margin for spacing */
+    padding: 10px; /* Add padding for better appearance */
+    background-color: #f0f8ff; /* Light background color for distinction */
+    border: 2px solid #add8e6; /* Light blue border */
+    border-radius: 5px; /* Rounded corners */
+}

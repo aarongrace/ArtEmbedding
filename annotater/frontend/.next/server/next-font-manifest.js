@@ -1,0 +1,1 @@
+self.__NEXT_FONT_MANIFEST='{"pages":{},"app":{"/home/grace/proggers/ant_manager/frontend/src/app/layout":["static/media/e4ea23ae1ecdc082-s.p.woff2"]},"appUsingSizeAdjust":true,"pagesUsingSizeAdjust":false}';

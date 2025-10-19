@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WikiArt Harvester</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <button id="downloadImage">Download Image on Page</button>
+  <button id="processArtist">Process Artist</button>
+  <button id="processMovementPage">Add All Artists on Movement Page to List of Target Artists</button>
+  <button id="startDownloadLoop">Start Download Loop Based on List of Target Artists</button>
+  <button id="stopDownloadLoop">Stop Download Loop</button>
+  <hr>
+  <button id="showData">Show Stored Data</button>
+  <button id="downloadData">Download All Stored Data as JSON</button>
+  <button id="downloadPaintingData">Download Paintings Metada as JSON</button>
+  <input type="file" id="upload-json" accept=".json" />
+  <button id="upload-btn">Overwrite Storage</button>
+  <button id="deleteAll">Delete All Data</button>
+  <button id="addTest">Add Test Painting</button>
+  <div id="status"></div>
+
+
+  <script src="storage.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
