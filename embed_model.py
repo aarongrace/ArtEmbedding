@@ -152,7 +152,7 @@ def save_progress(model, file_name):
 import os
 import json
 import random
-def get_split( total_length: int, valid_ids: list, test_percentage: float = 0.2, 
+def get_split( valid_ids: list, test_percentage: float = 0.2, 
               split_file: str = BASE_DIR/"metadata"/"data_splits.json", seed: int = 42,):
     """
     Create or load a consistent train/test split for a dataset of a given size.
@@ -173,15 +173,18 @@ def get_split( total_length: int, valid_ids: list, test_percentage: float = 0.2,
     else:
         split_data = {}
 
-    if split_data["train"] and split_data["test"] and len(split_data["train"]) + len(split_data["test"]) == total_length:
-        print(f"Loaded existing split for length {total_length}: "
-              f"{len(split_data['train'])} train, {len(split_data['test'])} test")
-        return split_data["train"], split_data["test"]
+    # Ensure keys exist
+    train = split_data.get("train", [])
+    test = split_data.get("test", [])
+    if train and test:
+        print(f"Loaded existing train/test split from {split_file}")
+        return train, test
+
 
     # Otherwise, generate a new split
     random.seed(seed)
     random.shuffle(valid_ids)
-    num_test = int(total_length * test_percentage)
+    num_test = int(len(valid_ids) * test_percentage)
     test_ids = valid_ids[:num_test]
     train_ids = valid_ids[num_test:]
 
@@ -190,8 +193,6 @@ def get_split( total_length: int, valid_ids: list, test_percentage: float = 0.2,
     with open(split_file, "w") as f:
         json.dump(split_data, f, indent=2)
 
-    print(f"Created new split for length {total_length}: "
-          f"{len(train_ids)} train, {len(test_ids)} test → saved to {split_file}")
     return train_ids, test_ids
 
 
@@ -248,8 +249,7 @@ def create_train_test_loaders( batch_size_train=32, batch_size_test=32, test_per
 
 
     # split into train and test sets
-    num_images = len(valid_paths_dict)
-    train_ids, test_ids = get_split(total_length=num_images, valid_ids=valid_paths_dict, test_percentage=test_percentage)
+    train_ids, test_ids = get_split(valid_ids=valid_paths_dict, test_percentage=test_percentage)
 
 
     train_paths = [valid_paths_dict[id] for id in train_ids]
