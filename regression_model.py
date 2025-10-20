@@ -921,12 +921,19 @@ def forward_images(images):
 
 def backward_single_image(image, target, lr=1e-5, batch_size=4,
                           movement_weight=1.0, genre_weight=1.0, form_weight=1.0,
+                          FREEZE_QFORMER=False, FREEZE_SHARED=False,
                           image_id="unknown", max_augmented_images=100):
     """
     Perform a single training step on one image.
     """
     model, processor = get_model_and_processor()
     model.train()
+    if FREEZE_QFORMER:
+        for param in model.blip2.qformer.parameters():
+            param.requires_grad = False
+    if FREEZE_SHARED:
+        for param in model.shared_features.parameters():
+            param.requires_grad = False
     criterion = WeightedMultiHeadLoss(movement_weight=movement_weight, genre_weight=genre_weight, form_weight=form_weight).to(MAIN_DEVICE)
 
 
