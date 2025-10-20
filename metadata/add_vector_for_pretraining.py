@@ -17,19 +17,19 @@ vector_properties = [
     "genre_landscape",
     "genre_portrait",
 
-    # Style dimensions (6)
-    "style_balance",        # Lopsided → Balanced
-    "style_complexity",     # Simple → Complex
-    "style_emotionality"    # Unemotional → Emotional
-    "style_dynamic",        # Still ↔ Dynamic
-    "style_naturalistic",   # Stylized ↔ Naturalistic
-    "style_texture",        # rough ↔ smooth
+    # Form dimensions (6)
+    "form_balance",        # Lopsided → Balanced
+    "form_complexity",     # Simple → Complex
+    "form_emotionality"    # Unemotional → Emotional
+    "form_dynamic",        # Still ↔ Dynamic
+    "form_naturalistic",   # Stylized ↔ Naturalistic
+    "form_brushstrokes",   # Smooth ↔ Visible Brushstrokes
 ]
 
 
 def metadata_to_vector(metadata):
     """
-    Convert WikiArt metadata to an 18-dim vector with predefined style axes.
+    Convert WikiArt metadata to an 18-dim vector with predefined form axes.
     Returns None if genre or movement is missing or invalid.
     """
 

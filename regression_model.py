@@ -60,7 +60,7 @@ elif PLATFORM == "IDAS":
 else:
     raise ValueError(f"Unknown PLATFORM: {PLATFORM}")
 
-print(f"Vision device: {VISION_DEVICE}, Main device: {MAIN_DEVICE}, Prelim training: {PRELIM_TRAINING}")
+print(f"Vision device: {VISION_DEVICE}, Main device: {MAIN_DEVICE}, Prelim training: {PRELIM_TRAINING}, Annotated training: {ANNOTATED_TRAINING}")
 IMGS_DIR = BASE_DIR / "paintings"
 PRELIM_METADATA_PATH = BASE_DIR / "metadata" / "paintings_metadata_with_hard_labels.json"
 CHECKPOINTS_DIR = BASE_DIR / "checkpoints"
@@ -68,7 +68,7 @@ CHECKPOINTS_DIR = BASE_DIR / "checkpoints"
 # vector dimensions
 MOVEMENT_DIM = 6
 GENRE_DIM = 6
-STYLE_DIM = 6
+FORM_DIM = 6
 
 # %%
 
@@ -126,8 +126,12 @@ def load_model_from_latest(model):
     model.shared_features.load_state_dict(state_dict["shared_features"])
     model.movement_head.load_state_dict(state_dict["movement_head"])
     model.genre_head.load_state_dict(state_dict["genre_head"])
-    model.style_head.load_state_dict(state_dict["style_head"])
-    
+    # the earlier name, changed for clarity
+    if "style_head" in state_dict:
+        model.form_head.load_state_dict(state_dict["style_head"])
+    elif "form_head" in state_dict:
+        model.form_head.load_state_dict(state_dict["form_head"])
+
     if "qformer" in state_dict:
         model.blip2.qformer.load_state_dict(state_dict["qformer"])
         print(" Loaded Q-Former weights")
@@ -142,7 +146,7 @@ def save_progress(model, file_name):
         "shared_features": model.shared_features.state_dict(),
         "movement_head": model.movement_head.state_dict(),
         "genre_head": model.genre_head.state_dict(),
-        "style_head": model.style_head.state_dict(),
+        "form_head": model.form_head.state_dict(),
     }
     # Optionally include Q-Former if it's being trained
     if any(p.requires_grad for p in model.blip2.qformer.parameters()):
@@ -312,14 +316,14 @@ import torch.nn as nn
 
 class BLIP2MultiHeadRegression(nn.Module):
     def __init__(self, blip2_model,
-                 use_style_head=True,
+                 use_form_head=True,
                  train_qformer=False,
                  train_vision=False):
         super().__init__()
 
         # --- Core model ---
         self.blip2 = blip2_model
-        self.use_style_head = use_style_head
+        self.use_form_head = use_form_head
 
         # --- Control what's trainable ---
         for param in self.blip2.vision_model.parameters():
@@ -344,7 +348,7 @@ class BLIP2MultiHeadRegression(nn.Module):
         print(f"Num query tokens: {num_query_tokens}")
         print(f"Hidden size: {hidden_size}")
         print(f"Feature dim: {feature_dim}")
-        print(f"Use style head: {use_style_head}")
+        print(f"Use form head: {use_form_head}")
 
         # --- Shared feature extraction ---
         self.shared_features = nn.Sequential(
@@ -369,12 +373,12 @@ class BLIP2MultiHeadRegression(nn.Module):
             nn.Linear(256, GENRE_DIM)
         ).to(MAIN_DEVICE)
 
-        # --- Style head (always defined, but only used if enabled) ---
-        self.style_head = nn.Sequential(
+        # --- Form head (always defined, but only used if enabled) ---
+        self.form_head = nn.Sequential(
             nn.Linear(512, 256),
             nn.ReLU(),
             nn.Dropout(0.1),
-            nn.Linear(256, STYLE_DIM)
+            nn.Linear(256, FORM_DIM)
         ).to(MAIN_DEVICE)
 
     def forward(self, images):
@@ -410,12 +414,12 @@ class BLIP2MultiHeadRegression(nn.Module):
         # --- Regression heads ---
         movement_scores = self.movement_head(shared_features)
         genre_scores = self.genre_head(shared_features)
-        style_scores = self.style_head(shared_features)
+        form_scores = self.form_head(shared_features)
 
         outputs = {
             'movement': movement_scores,
             'genre': genre_scores,
-            'style': style_scores,
+            'form': form_scores,
         }
         return outputs
 
@@ -424,26 +428,26 @@ class BLIP2MultiHeadRegression(nn.Module):
 # %%
 # Multi-head weighted loss function
 class WeightedMultiHeadLoss(nn.Module):
-    def __init__(self, movement_weight=1.0, genre_weight=1.0, style_weight=1.0, use_style=True):
+    def __init__(self, movement_weight=1.0, genre_weight=1.0, form_weight=1.0, use_form=True):
         super().__init__()
         self.movement_weight = movement_weight
         self.genre_weight = genre_weight
-        self.style_weight = style_weight
+        self.form_weight = form_weight
         self.zoom_movement_factor = 1.0
         self.zoom_genre_factor = 1.0
-        self.zoom_style_factor = 1.0
-        self.use_style = use_style
+        self.zoom_form_factor = 1.0
+        self.use_form = use_form
 
         # MSE loss for continuous targets
         self.mse = nn.MSELoss(reduction='none')
         
-        self.style_component_weights = torch.tensor(
-            [1.0] * STYLE_DIM,
+        self.form_components_weights = torch.tensor(
+            [1.0] * FORM_DIM,
             dtype=torch.float32
         ).to(MAIN_DEVICE)
     
     def set_zoom_level(self, zoom_level):
-        style_weight_factors = [
+        form_weight_factors = [
             0.0,  # balance can only be assessed at full image
             0.7,  # complexity. high zoom might miss overall complexity
             0.5,  # emotionality. high zoom might crop out the emotional content
@@ -453,15 +457,15 @@ class WeightedMultiHeadLoss(nn.Module):
         ]
         # special case for original image
         if zoom_level == 0:
-            self.style_component_weights = torch.tensor(
+            self.form_components_weights = torch.tensor(
                 [1.0, 1.0, 1.0, 1.0, 1.0, 0.5],
                 dtype=torch.float32
             ).to(MAIN_DEVICE)
             self.zoom_genre_factor = 1.0
             self.zoom_movement_factor = 1.0
         else:
-            self.style_component_weights = torch.tensor(
-                [f ** zoom_level for f in style_weight_factors],
+            self.form_components_weights = torch.tensor(
+                [f ** zoom_level for f in form_weight_factors],
                 dtype=torch.float32
             ).to(MAIN_DEVICE)
             self.zoom_genre_factor = 1.0 *  (0.4 ** zoom_level) # pretty hard to see the genre at high zooms
@@ -470,7 +474,7 @@ class WeightedMultiHeadLoss(nn.Module):
     def forward(self, predictions, targets):
         """
         Args:
-            predictions: dict with 'movement', 'genre', 'style' (raw outputs)
+            predictions: dict with 'movement', 'genre', 'form' (raw outputs)
             targets: tensor [batch, total_dim] (target values)
         """
         # Split targets by head dimensions
@@ -490,15 +494,14 @@ class WeightedMultiHeadLoss(nn.Module):
         total_loss = movement_loss + genre_loss
         loss_dict = {'movement': movement_loss.item(), 'genre': genre_loss.item()}
 
-        if self.use_style:
-            self.style_component_weights = self.style_component_weights.to(targets.device)
-            style_target = targets[:, MOVEMENT_DIM + GENRE_DIM :]
-            # print(f"Prediction and target for 0: {predictions['style'][0]}, {style_target[0]}")
-            style_loss = self.mse(predictions['style'], style_target)
-            style_loss = style_loss * self.style_component_weights.unsqueeze(0)
-            style_loss = style_loss.mean() * self.style_weight * self.zoom_style_factor
-            total_loss += style_loss
-            loss_dict['style'] = style_loss.item()
+        if self.use_form:
+            self.form_components_weights = self.form_components_weights.to(targets.device)
+            form_target = targets[:, MOVEMENT_DIM + GENRE_DIM :]
+            form_loss = self.mse(predictions['form'], form_target)
+            form_loss = form_loss * self.form_components_weights.unsqueeze(0)
+            form_loss = form_loss.mean() * self.form_weight * self.zoom_form_factor
+            total_loss += form_loss
+            loss_dict['form'] = form_loss.item()
 
         loss_dict['total'] = total_loss.item()
         return total_loss, loss_dict
@@ -647,7 +650,7 @@ def run_preliminary_training(
     # ---------------- Model setup ----------------
     model = BLIP2MultiHeadRegression(
         blip2,
-        use_style_head=False,
+        use_form_head=False,
         train_qformer=True,
         train_vision=False
     )
@@ -656,7 +659,7 @@ def run_preliminary_training(
     criterion = WeightedMultiHeadLoss(
         movement_weight=1.0,
         genre_weight=1.0,
-        use_style=False
+        use_form=False
     ).to(MAIN_DEVICE)
 
     optimizer = torch.optim.AdamW(
@@ -878,7 +881,7 @@ def initialize_model_for_webaccess():
     """
     model = BLIP2MultiHeadRegression(
         blip2,
-        use_style_head=True,
+        use_form_head=True,
         train_qformer=True,
         train_vision=False
     )
@@ -908,7 +911,7 @@ def forward_images(images):
         outputs = model(inputs)
 
     # Move each head to CPU and convert to list
-    embeddings = torch.cat([ outputs['movement'], outputs['genre'], outputs['style'] ], 
+    embeddings = torch.cat([ outputs['movement'], outputs['genre'], outputs['form'] ], 
                            dim=1).cpu().tolist()
     
 
@@ -916,13 +919,15 @@ def forward_images(images):
     print(f"Forward pass completed on {len(images)} images")
     return embeddings
 
-def backward_single_image(image, target, lr=1e-5, batch_size=4, image_id="unknown", max_augmented_images=100):
+def backward_single_image(image, target, lr=1e-5, batch_size=4,
+                          movement_weight=1.0, genre_weight=1.0, form_weight=1.0,
+                          image_id="unknown", max_augmented_images=100):
     """
     Perform a single training step on one image.
     """
     model, processor = get_model_and_processor()
     model.train()
-    criterion = WeightedMultiHeadLoss(movement_weight=1.0, genre_weight=1.0, use_style=True).to(MAIN_DEVICE)
+    criterion = WeightedMultiHeadLoss(movement_weight=movement_weight, genre_weight=genre_weight, form_weight=form_weight).to(MAIN_DEVICE)
 
 
     augmented_pixel_values = augment_annotated_image(
@@ -940,13 +945,13 @@ def backward_single_image(image, target, lr=1e-5, batch_size=4, image_id="unknow
             target_tensor = torch.tensor([target]*len(batch_images), dtype=torch.float32).to(MAIN_DEVICE)
             outputs = model(pixel_values)
             loss, loss_dict = criterion(outputs, target_tensor)
-            print(f"Backprop on {image_id} with {zoom_level:.4f} zoom: Loss = Movement {loss_dict['movement']:.4f}, Genre {loss_dict['genre']:.4f}, Style {loss_dict['style']:.4f}, batch index {i}")
+            print(f"Backprop on {image_id} with {zoom_level:.4f} zoom: Loss = Movement {loss_dict['movement']:.4f}, Genre {loss_dict['genre']:.4f}, Form {loss_dict['Form']:.4f}, batch index {i}")
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
-    average_loss = total_loss / number_of_images
+    average_loss = total_loss / len(augmented_pixel_values)
     torch.cuda.empty_cache()
     print(f"Backward pass completed on image {image_id} | Average Loss: {average_loss:.4f}")
     return average_loss
@@ -954,11 +959,8 @@ def backward_single_image(image, target, lr=1e-5, batch_size=4, image_id="unknow
 
 # %%
 # annotated training using expert-labeled data
-def annotated_training(num_epochs=5, 
-                       genre_weight=1.0, 
-                       movement_weight=1.0, 
-                       style_weight=1.0,
-                       max_augmented_images=100):
+def annotated_training(num_epochs=5, max_augmented_images=100,
+                       movement_weight=1.0, genre_weight=1.0, form_weight=1.0):
 
     from annotater.backend.model_services import load_PIL_image, get_labels_created_dict
     print("="*60 + "ANNOTATED TRAINING" + "="*60)
@@ -966,24 +968,11 @@ def annotated_training(num_epochs=5,
     
     model = BLIP2MultiHeadRegression(
         blip2,
-        use_style_head=True,
+        use_form_head=True,
         train_qformer=True,
         train_vision=False
     )
     load_model_from_latest(model)
-
-    criterion = WeightedMultiHeadLoss(
-        movement_weight=movement_weight,
-        genre_weight=genre_weight,
-        style_weight=style_weight,
-        use_style=True
-    ).to(MAIN_DEVICE)
-
-    optimizer = torch.optim.AdamW(
-        model.parameters(),
-        lr=1e-6,
-        weight_decay=0.01
-    )
 
     _, test_loader = create_train_test_loaders(
         batch_size_train=32,
@@ -991,7 +980,7 @@ def annotated_training(num_epochs=5,
         test_percentage=0.1,
     )
     test_criterion = WeightedMultiHeadLoss(
-        use_style=False
+        use_form=False
     ).to(MAIN_DEVICE)
 
     total_loss = 0.0
@@ -1001,6 +990,7 @@ def annotated_training(num_epochs=5,
         print(f"{'='*60}")
     
         epoch_loss = 0.0
+        completed_images = 0
         for image_id, target in labels_created.items():
             try:
                 image = load_PIL_image(image_id)
@@ -1013,13 +1003,19 @@ def annotated_training(num_epochs=5,
                 lr=1e-5,
                 batch_size=4,
                 image_id=image_id,
-                max_augmented_images=max_augmented_images
+                max_augmented_images=max_augmented_images,
+                movement_weight=movement_weight,
+                genre_weight=genre_weight,
+                form_weight=form_weight,
             )
+            print(f"{completed_images + 1}/{len(labels_created)} images processed in epoch {epoch}")
 
         avg_epoch_loss = epoch_loss / len(labels_created)
         total_loss += avg_epoch_loss
         # --- Training ---
         print(f"Epoch {epoch} training complete | Avg Loss: {avg_epoch_loss:.4f}")
+        file_name = f"model_epoch_{epoch}_avgLoss_{avg_epoch_loss:.4f}"
+        save_progress(model, file_name)
 
         print("validating on test set to ensure not forgetting preliminary training")
         test_epoch(
@@ -1031,10 +1027,7 @@ def annotated_training(num_epochs=5,
         )
 
     print(f"training complete | Avg Loss over {num_epochs} epochs: {total_loss / num_epochs:.4f}")
-    file_name = f"model_epoch_{epoch}_avgLoss_{total_loss / num_epochs:.4f}"
-    save_progress(model, file_name)
     print("\n" + "="*30, "ANNOTATED TRAINING COMPLETE", "="*30)
-    print("="*60)
         # we need to make sure that the model is not forgetting the preliminary training
 if ANNOTATED_TRAINING:
     annotated_training()

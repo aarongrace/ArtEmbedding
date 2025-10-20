@@ -1,8 +1,5 @@
 import axios from 'axios';
 // dashboard.service.ts
-// ==========================
-// Placeholder service functions for dashboard actions
-// ==========================
 
 export interface PaintingData {
   id: string;
