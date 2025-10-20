@@ -55,7 +55,7 @@ elif PLATFORM == "IDAS":
         raise EnvironmentError("CUDA is not available on IDAS. Please restart with GPU access.")
     VISION_DEVICE = "cuda"
     MAIN_DEVICE = "cuda"
-    PRELIM_TRAINING = True
+    PRELIM_TRAINING = False
     ANNOTATED_TRAINING = True
 else:
     raise ValueError(f"Unknown PLATFORM: {PLATFORM}")
@@ -945,7 +945,7 @@ def backward_single_image(image, target, lr=1e-5, batch_size=4,
             target_tensor = torch.tensor([target]*len(batch_images), dtype=torch.float32).to(MAIN_DEVICE)
             outputs = model(pixel_values)
             loss, loss_dict = criterion(outputs, target_tensor)
-            print(f"Backprop on {image_id} with {zoom_level:.4f} zoom: Loss = Movement {loss_dict['movement']:.4f}, Genre {loss_dict['genre']:.4f}, Form {loss_dict['Form']:.4f}, batch index {i}")
+            print(f"Backprop on {image_id} with {zoom_level:.4f} zoom: Loss = Movement {loss_dict['movement']:.4f}, Genre {loss_dict['genre']:.4f}, Form {loss_dict['form']:.4f}, batch index {i}")
 
             optimizer.zero_grad()
             loss.backward()
@@ -960,7 +960,7 @@ def backward_single_image(image, target, lr=1e-5, batch_size=4,
 # %%
 # annotated training using expert-labeled data
 def annotated_training(num_epochs=5, max_augmented_images=100,
-                       movement_weight=1.0, genre_weight=1.0, form_weight=1.0):
+                       movement_weight=0.05, genre_weight=0.05, form_weight=1.1):
 
     from annotater.backend.model_services import load_PIL_image, get_labels_created_dict
     print("="*60 + "ANNOTATED TRAINING" + "="*60)
@@ -1008,23 +1008,24 @@ def annotated_training(num_epochs=5, max_augmented_images=100,
                 genre_weight=genre_weight,
                 form_weight=form_weight,
             )
+            completed_images += 1
             print(f"{completed_images + 1}/{len(labels_created)} images processed in epoch {epoch}")
 
         avg_epoch_loss = epoch_loss / len(labels_created)
         total_loss += avg_epoch_loss
         # --- Training ---
         print(f"Epoch {epoch} training complete | Avg Loss: {avg_epoch_loss:.4f}")
-        file_name = f"model_epoch_{epoch}_avgLoss_{avg_epoch_loss:.4f}"
-        save_progress(model, file_name)
 
         print("validating on test set to ensure not forgetting preliminary training")
-        test_epoch(
+        val_loss = test_epoch(
             model,
             test_loader,
             test_criterion,
             MAIN_DEVICE,
             processor
         )
+        file_name = f"model_annotated_epoch_{epoch}_valLoss{val_loss:.4f}"
+        save_progress(model, file_name)
 
     print(f"training complete | Avg Loss over {num_epochs} epochs: {total_loss / num_epochs:.4f}")
     print("\n" + "="*30, "ANNOTATED TRAINING COMPLETE", "="*30)
