@@ -67,7 +67,12 @@ def ensure_user_state(user_id: str = USER_NAME):
 
     return users_state[user_id]
 
-
+def get_labels_created_dict(user_id: str = USER_NAME) -> dict:
+    user_state = get_user_state(user_id)
+    labels_list = user_state.get(LABELS_FIELD_NAME)
+    if labels_list is None:
+        raise ValueError(f"User state for {user_id} does not have field {LABELS_FIELD_NAME}")
+    return labels_list
 
 def get_seen_list(user_id: str = USER_NAME) -> list:
     user_state = get_user_state(user_id)
