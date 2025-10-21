@@ -76,7 +76,7 @@ async def upload_label(label: GroundTruthLabel):
 
 @model_router.post("/save_checkpoint")
 async def save_model_checkpoint():
-    from embed_model import save_progress, get_model_and_processor
+    from regression_model import save_progress, get_model_and_processor
     from datetime import datetime
     model, _ = get_model_and_processor()
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

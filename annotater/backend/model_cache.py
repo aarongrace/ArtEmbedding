@@ -2,7 +2,7 @@ import threading
 from typing import Dict, List, Optional
 from collections import deque
 
-from embed_model import forward_images, backward_single_image
+from regression_model import forward_images, backward_single_image
 from model_services import get_seen_list, load_PIL_image, get_random_image_id, USER_NAME, add_to_seen_list
 
 

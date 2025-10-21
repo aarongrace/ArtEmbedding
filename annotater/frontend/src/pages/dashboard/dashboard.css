@@ -147,7 +147,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  cursor: pointer;
+  cursor: default;
   overflow: hidden;
 }
 
@@ -157,7 +157,8 @@
   object-fit: contain; /* fill the space without cropping */
 }
 
-.loading-placeholder {
+
+#loading-placeholder {
   display: flex;
   justify-content: center;
   align-items: center;

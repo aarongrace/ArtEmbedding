@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import './dashboard.css';
 
 import { fetchPainting, finalizeAndGetNext, PaintingData, saveModelCheckpoint, toggleDemoMode, toggleLargeImagePriority as toggleFetchLargeImages, toggleFetchTestImages } from './dashboard.services'
+import { get } from 'axios';
 
 // Slider definitions
 const movements = {
@@ -69,6 +70,7 @@ const Dashboard: React.FC = () => {
       setCurrentPainting(data);
       setSliderValues(data.vector)
       setImageLoaded(true);
+      
     });
   };
 
@@ -100,6 +102,9 @@ const Dashboard: React.FC = () => {
 
   const handleFetchTestImagesToggle = (value: boolean) => {
     console.log("Toggling fetch test images to:", value);
+    setCurrentPainting ({id: "", title: "", artist: "", year: "", genre: [], movement: [], tags: [], imageUrl: "", vector: []});
+    setSliderValues(Array(18).fill(0));
+    setImageLoaded(false);
     toggleFetchTestImages(value);
     setFetchTestImages(value);
     if (value === true && demoMode === false) {
@@ -192,7 +197,7 @@ const Dashboard: React.FC = () => {
                 className="preview-image"
               />
             ) : (
-              <div className="loading-placeholder" onClick={handleLoadImage}>
+              <div id="loading-placeholder" onClick={handleLoadImage}>
                 <p className="click-to-load" >Click to load</p>
               </div>
             )}

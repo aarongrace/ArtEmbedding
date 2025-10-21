@@ -35,7 +35,7 @@ from model_cache import get_cache
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from model_services import ensure_user_state, USER_NAME
-    from embed_model import get_model_and_processor
+    from regression_model import get_model_and_processor
     # --- Startup code ---
     ensure_user_state(USER_NAME)   # Ensure default user exists
     get_model_and_processor()      # Preload model

@@ -48,7 +48,7 @@ if PLATFORM == "PC":
     PRELIM_TRAINING = False
     # training again with expert-annotated labels
     # already done in active loop but extra epochs can be helpful
-    ANNOTATED_TRAINING = True 
+    ANNOTATED_TRAINING = False 
 
 elif PLATFORM == "IDAS":
     if not torch.cuda.is_available():
