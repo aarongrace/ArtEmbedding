@@ -106,18 +106,16 @@ for param in blip2.vision_model.parameters():
 # checkpoint functions
 import os
 import glob
-
-def get_latest_checkpoint():
+# as we are not training the vision model, load only the relevant parts
+def load_model_from_latest(model):
     checkpoint_files = glob.glob(os.path.join(CHECKPOINTS_DIR, "model_*.pt"))
     if not checkpoint_files:
         return None
     # Sort by modification time
     checkpoint_files.sort(key=os.path.getmtime)
-    return checkpoint_files[-1]
+    latest_check_point = checkpoint_files[-1]
 
-# as we are not training the vision model, load only the relevant parts
-def load_model_from_latest(model):
-    latest_check_point = get_latest_checkpoint()
+
     if latest_check_point is None:
         print("No checkpoint found. Starting from scratch.")
         return
@@ -457,8 +455,9 @@ class WeightedMultiHeadLoss(nn.Module):
         ]
         # special case for original image
         if zoom_level == 0:
+            # we need to train the higher-level attribtues more because otherwise they just don't get trained enough
             self.form_components_weights = torch.tensor(
-                [1.0, 1.0, 1.0, 1.0, 1.0, 0.5],
+                [5.0, 4.0, 3.0, 1.0, 1.0, 0.5],
                 dtype=torch.float32
             ).to(MAIN_DEVICE)
             self.zoom_genre_factor = 1.0
@@ -952,6 +951,11 @@ def backward_single_image(image, target, lr=1e-5, batch_size=4,
             target_tensor = torch.tensor([target]*len(batch_images), dtype=torch.float32).to(MAIN_DEVICE)
             outputs = model(pixel_values)
             loss, loss_dict = criterion(outputs, target_tensor)
+            if zoom_level == 0:
+                row = outputs['form'][0]  # tensor of shape [FORM_DIM]
+                formatted = [f"{x:.4f}" for x in row]  # convert each element to a formatted string
+                print(f"Output: {formatted}, {target[12:18]}")
+
             print(f"Backprop on {image_id} with {zoom_level:.4f} zoom: Loss = Movement {loss_dict['movement']:.4f}, Genre {loss_dict['genre']:.4f}, Form {loss_dict['form']:.4f}, batch index {i}")
 
             optimizer.zero_grad()
@@ -966,7 +970,7 @@ def backward_single_image(image, target, lr=1e-5, batch_size=4,
 
 # %%
 # annotated training using expert-labeled data
-def annotated_training(num_epochs=5, max_augmented_images=100,
+def annotated_training(num_epochs=10, max_augmented_images=100,
                        movement_weight=0.05, genre_weight=0.05, form_weight=1.1):
 
     from annotater.backend.model_services import load_PIL_image, get_labels_created_dict
@@ -976,7 +980,7 @@ def annotated_training(num_epochs=5, max_augmented_images=100,
     model = BLIP2MultiHeadRegression(
         blip2,
         use_form_head=True,
-        train_qformer=True,
+        train_qformer=False,
         train_vision=False
     )
     load_model_from_latest(model)
@@ -1014,6 +1018,8 @@ def annotated_training(num_epochs=5, max_augmented_images=100,
                 movement_weight=movement_weight,
                 genre_weight=genre_weight,
                 form_weight=form_weight,
+                FREEZE_QFORMER=True,
+                FREEZE_SHARED=True
             )
             completed_images += 1
             print(f"{completed_images + 1}/{len(labels_created)} images processed in epoch {epoch}")
@@ -1022,18 +1028,18 @@ def annotated_training(num_epochs=5, max_augmented_images=100,
         total_loss += avg_epoch_loss
         # --- Training ---
         print(f"Epoch {epoch} training complete | Avg Loss: {avg_epoch_loss:.4f}")
-
-        print("validating on test set to ensure not forgetting preliminary training")
-        val_loss = test_epoch(
-            model,
-            test_loader,
-            test_criterion,
-            MAIN_DEVICE,
-            processor
-        )
-        file_name = f"model_annotated_epoch_{epoch}_valLoss{val_loss:.4f}"
+        file_name = f"model_annotated_epoch_{epoch}_avg_epoch_loss{avg_epoch_loss}:.4f}"
         save_progress(model, file_name)
 
+
+    print("validating on test set to ensure not forgetting preliminary training")
+    val_loss = test_epoch(
+        model,
+        test_loader,
+        test_criterion,
+        MAIN_DEVICE,
+        processor
+    )
     print(f"training complete | Avg Loss over {num_epochs} epochs: {total_loss / num_epochs:.4f}")
     print("\n" + "="*30, "ANNOTATED TRAINING COMPLETE", "="*30)
         # we need to make sure that the model is not forgetting the preliminary training
