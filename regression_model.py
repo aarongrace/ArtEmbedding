@@ -48,7 +48,7 @@ if PLATFORM == "PC":
     PRELIM_TRAINING = False
     # training again with expert-annotated labels
     # already done in active loop but extra epochs can be helpful
-    ANNOTATED_TRAINING = False 
+    ANNOTATED_TRAINING = True 
 
 elif PLATFORM == "IDAS":
     if not torch.cuda.is_available():
@@ -105,6 +105,7 @@ for param in blip2.vision_model.parameters():
 # %%
 # checkpoint functions
 import os
+import re
 import glob
 # as we are not training the vision model, load only the relevant parts
 def load_model_from_latest(model):
@@ -114,6 +115,12 @@ def load_model_from_latest(model):
     # Sort by modification time
     checkpoint_files.sort(key=os.path.getmtime)
     latest_check_point = checkpoint_files[-1]
+
+    last_epoch = 1
+    file_name = os.path.basename(latest_check_point)
+    if "epoch" in file_name:
+        match = re.search(r"epoch_(\d+)", file_name)
+        last_epoch = int(match.group(1))
 
 
     if latest_check_point is None:
@@ -133,8 +140,12 @@ def load_model_from_latest(model):
     if "qformer" in state_dict:
         model.blip2.qformer.load_state_dict(state_dict["qformer"])
         print(" Loaded Q-Former weights")
-    
-    print(f" Loaded weights from {latest_check_point}")
+
+    if last_epoch == 1:
+        print(f" Loaded weights from {latest_check_point}")
+    else:
+        print(f" Loaded weights from {latest_check_point} (epoch {last_epoch})")
+    return last_epoch
 
 
 def save_progress(model, file_name):
@@ -653,7 +664,7 @@ def run_preliminary_training(
         train_qformer=True,
         train_vision=False
     )
-    load_model_from_latest(model)
+    start_epoch = load_model_from_latest(model) + 1
 
     criterion = WeightedMultiHeadLoss(
         movement_weight=1.0,
@@ -680,7 +691,7 @@ def run_preliminary_training(
     best_val_loss = float('inf')
     epochs_without_improvement = 0
 
-    for epoch in range(1, num_epochs + 1):
+    for epoch in range(start_epoch, num_epochs + 1):
         print(f"\n{'='*60}")
         print(f"Epoch {epoch}/{num_epochs}")
         current_lr = optimizer.param_groups[0]['lr']
@@ -983,7 +994,7 @@ def annotated_training(num_epochs=10, max_augmented_images=100,
         train_qformer=False,
         train_vision=False
     )
-    load_model_from_latest(model)
+    start_epoch = load_model_from_latest(model) + 1
 
     _, test_loader = create_train_test_loaders(
         batch_size_train=32,
@@ -995,7 +1006,7 @@ def annotated_training(num_epochs=10, max_augmented_images=100,
     ).to(MAIN_DEVICE)
 
     total_loss = 0.0
-    for epoch in range(1, num_epochs + 1):
+    for epoch in range(start_epoch, num_epochs + 1):
         print(f"\n{'='*60}")
         print(f"Epoch {epoch}/{num_epochs}")
         print(f"{'='*60}")
@@ -1028,7 +1039,7 @@ def annotated_training(num_epochs=10, max_augmented_images=100,
         total_loss += avg_epoch_loss
         # --- Training ---
         print(f"Epoch {epoch} training complete | Avg Loss: {avg_epoch_loss:.4f}")
-        file_name = f"model_annotated_epoch_{epoch}_avg_epoch_loss{avg_epoch_loss}:.4f}"
+        file_name = f"model_annotated_epoch_{epoch}_avg_epoch_loss{avg_epoch_loss:.4f}"
         save_progress(model, file_name)
 
 
