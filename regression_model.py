@@ -48,7 +48,7 @@ if PLATFORM == "PC":
     PRELIM_TRAINING = False
     # training again with expert-annotated labels
     # already done in active loop but extra epochs can be helpful
-    ANNOTATED_TRAINING = True 
+    ANNOTATED_TRAINING = False 
 
 elif PLATFORM == "IDAS":
     if not torch.cuda.is_available():
@@ -116,7 +116,7 @@ def load_model_from_latest(model):
     checkpoint_files.sort(key=os.path.getmtime)
     latest_check_point = checkpoint_files[-1]
 
-    last_epoch = 1
+    last_epoch = 0
     file_name = os.path.basename(latest_check_point)
     if "epoch" in file_name:
         match = re.search(r"epoch_(\d+)", file_name)
@@ -141,7 +141,7 @@ def load_model_from_latest(model):
         model.blip2.qformer.load_state_dict(state_dict["qformer"])
         print(" Loaded Q-Former weights")
 
-    if last_epoch == 1:
+    if last_epoch == 0:
         print(f" Loaded weights from {latest_check_point}")
     else:
         print(f" Loaded weights from {latest_check_point} (epoch {last_epoch})")
@@ -351,8 +351,11 @@ class BLIP2MultiHeadRegression(nn.Module):
 
         # --- Config info ---
         num_query_tokens = blip2_model.config.num_query_tokens
+        # 32 for blip2-flan-t5-xl
         hidden_size = blip2_model.config.qformer_config.hidden_size
+        # 768 for blip2-flan-t5-xl
         feature_dim = num_query_tokens * hidden_size
+        # 24576 for blip2-flan-t5-xl
 
         print(f"Num query tokens: {num_query_tokens}")
         print(f"Hidden size: {hidden_size}")

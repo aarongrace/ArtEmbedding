@@ -69,7 +69,7 @@ async def set_fetch_test_images(value: bool):
 
 @model_router.post("/label")
 async def upload_label(label: GroundTruthLabel):
-    add_to_labels_list(label.id, label.vector)
+    add_to_labels_dict(label.id, label.vector)
     cache = get_cache()
     cache.add_to_backprop_queue(label.id, label.vector)
     return {"status": "ok"}

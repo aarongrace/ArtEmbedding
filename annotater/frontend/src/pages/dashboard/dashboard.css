@@ -167,6 +167,7 @@
   background-color: #d0e1f9; /* lighter blue-grey */
   border: 2px dashed #82a0d8; /* dashed border to indicate loading */
   border-radius: 8px;
+  cursor:pointer;
 }
 
 /* Click to load text */

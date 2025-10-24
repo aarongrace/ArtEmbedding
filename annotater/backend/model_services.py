@@ -69,10 +69,10 @@ def ensure_user_state(user_id: str = USER_NAME):
 
 def get_labels_created_dict(user_id: str = USER_NAME) -> dict:
     user_state = get_user_state(user_id)
-    labels_list = user_state.get(LABELS_FIELD_NAME)
-    if labels_list is None:
+    labels_dict = user_state.get(LABELS_FIELD_NAME)
+    if labels_dict is None:
         raise ValueError(f"User state for {user_id} does not have field {LABELS_FIELD_NAME}")
-    return labels_list
+    return labels_dict
 
 def get_seen_list(user_id: str = USER_NAME) -> list:
     user_state = get_user_state(user_id)
@@ -98,11 +98,11 @@ def add_to_seen_list(image_id: str, user_id: str = USER_NAME):
         with open(USERS_STATE_FILE, "w", encoding="utf-8") as f:
             json.dump(users_state, f, indent=4)
 
-def add_to_labels_list(image_id: str, label_vector: list, user_id: str = USER_NAME):
-    print(f"demo_mode is {demo_mode}")
+def add_to_labels_dict(image_id: str, label_vector: list, user_id: str = USER_NAME):
     if demo_mode:
         print("Demo mode active - not persisting labels list changes")
         return
+
     if USERS_STATE_FILE.exists():
         with open(USERS_STATE_FILE, "r", encoding="utf-8") as f:
             users_state = json.load(f)
