@@ -1,6 +1,8 @@
 import json
 import os
 import re
+# please run this script from the root directory of the project
+
 
 # Load metadata
 metadata_file = os.path.join('metadata', 'paintings_metadata.json')
