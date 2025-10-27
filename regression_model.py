@@ -404,6 +404,8 @@ class BLIP2MultiHeadRegression(nn.Module):
                 vision_outputs = self.blip2.vision_model(pixel_values=images_vision)
 
         image_embeds = vision_outputs.last_hidden_state.to(MAIN_DEVICE)  # move to GPU
+        # print(f" Image embeds shape: {image_embeds.shape}")
+        # the shape should be [batch_size, 257, 1408] for blip2-flan-t5-xl
 
         # --- Q-Former processing ---
         query_tokens = self.blip2.query_tokens.expand(images.shape[0], -1, -1).to(MAIN_DEVICE)
