@@ -1,4 +1,4 @@
-# Continuous Embeddings of Historical Paintings via Expert-in-the-Loop Active Learning
+# Encoding Paintings through Real-Time Expert-Guided Embedding
 
 ## Introduction
 
@@ -74,14 +74,14 @@ To scrape paintings from WikiArt:
 
 ## Project Status
 
-### ✓ Completed
-- [x] Create dataset by scraping 30,928 paintings and metadata from WikiArt.org
-- [x] Design and implement model architecture (BLIP-2 with three regression heads)
-- [x] Conduct preliminary training based on hard label database
-- [x] Create full-stack web application
-  - [x] FastAPI backend with model integration for forward and backward passes
-  - [x] Cache system for predictions and backwards queue
-  - [x] React frontend annotation loop
+###  Completed
+- [✓] Create dataset by scraping 30,928 paintings and metadata from WikiArt.org
+- [✓] Design and implement model architecture (BLIP-2 with three regression heads)
+- [✓] Conduct preliminary training based on hard label database
+- [✓] Create full-stack web application
+- [✓] FastAPI backend with model integration for forward and backward passes
+- [✓] Cache system for predictions and backwards queue
+- [✓] React frontend annotation loop
 
 ### ✗ In Progress
 - [ ] User system for backend
