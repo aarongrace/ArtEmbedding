@@ -95,13 +95,13 @@ pip install -r req.txt
 python -m ipykernel install --user --name=painting-embed-env --display-name "Art Embedding Env"
 
 ```
-Now you can run ```regression_model.ipynb``` on in the root folder
+Now you can run ```regression_model.ipynb``` in the root folder
 ### 2. Web Application for Expert Annotation
 
 To run the full-stack annotation interface:
 
 ```bash
-# Install backend dependencies (if not already done)
+# Install the concurrently module
 cd webApp
 npm install
 
@@ -152,15 +152,6 @@ To scrape paintings from WikiArt:
 - [ ] Focus-guided adversarial image generation and testing
 - [ ] Cluster analysis and art-historical insights generation
 
-## Related Work
-
-The prediction of art styles is an emerging area in machine learning. Recent trends have shifted from early interactive classification tools (2000s–2010s) to deep learning approaches with CNNs and GANs (2010s–2020s), and most recently to emotion recognition, cultural heritage preservation, and multimodal approaches (2020s+). This research combines human annotation approaches with state-of-the-art visual models.
-
-### What Distinguishes This Project
-- Style is represented continuously, not categorically
-- Expert annotation is integrated directly into training, not used post-hoc
-- Visual similarity judgments inform embedding structure through contrastive learning
-- The embedding is explicitly designed for interpretability, not just accuracy
 
 ## License
 
