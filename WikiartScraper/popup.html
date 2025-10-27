@@ -5,12 +5,12 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <button id="downloadImage">Download Image on Page</button>
-  <button id="processArtist">Process Artist</button>
+  <h3>Download Loop</h3>
   <button id="processMovementPage">Add All Artists on Movement Page to List of Target Artists</button>
   <button id="startDownloadLoop">Start Download Loop Based on List of Target Artists</button>
   <button id="stopDownloadLoop">Stop Download Loop</button>
-  <hr>
+  <div id="status"></div>
+  <h3>Storage Management</h3>
   <button id="showData">Show Stored Data</button>
   <button id="downloadData">Download All Stored Data as JSON</button>
   <button id="downloadPaintingData">Download Paintings Metada as JSON</button>
@@ -18,7 +18,10 @@
   <button id="upload-btn">Overwrite Storage</button>
   <button id="deleteAll">Delete All Data</button>
   <button id="addTest">Add Test Painting</button>
-  <div id="status"></div>
+
+  <h3>Test functions</h3>
+  <button id="downloadImage">Download Image on Page</button>
+  <button id="processArtist">Process Artist</button>
 
 
   <script src="storage.js"></script>
