@@ -91,11 +91,11 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 # Install dependencies
 pip install -r req.txt
 
-# Run the training notebook
-jupyter notebook
-# Open and run the preliminary training notebook in the root folder
-```
+# Turn the venv into a kernel env
+python -m ipykernel install --user --name=painting-embed-env --display-name "Art Embedding Env"
 
+```
+Now you can run ```regression_model.ipynb``` on in the root folder
 ### 2. Web Application for Expert Annotation
 
 To run the full-stack annotation interface:
