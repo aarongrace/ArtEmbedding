@@ -83,14 +83,13 @@ To scrape paintings from WikiArt:
 - [✓] Cache system for predictions and backwards queue
 - [✓] React frontend annotation loop
 
-### ✗ In Progress
-- [ ] User system for backend
-- [ ] Revision interface for previous annotations
-- [ ] Interactive search engine frontend
+### In Progress
+- [ ] User registration/login system
+- [ ] Multi-modal search engine for paintings
 - [ ] Contrastive learning component implementation
-- [ ] Independent expert evaluation dataset construction
 - [ ] Focus-guided adversarial image generation and testing
-- [ ] Cluster analysis and art-historical insights generation
+- [ ] Cluster analysis
+
 ## Problem Formulation
 
 Each painting is represented by an image *I* and mapped to an 18-dimensional continuous embedding vector **v** = [**m**, **g**, **f**] where:
