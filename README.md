@@ -10,6 +10,84 @@ Existing computational approaches typically treat art classification as a discre
 
 This project seeks to operationalize this art-historical understanding in a machine learning framework. The core aim is to construct continuous stylistic embeddings, refined through expert interpretation, that can support meaningful search, analysis, and interpretation.
 
+## How to Run
+
+### Prerequisites
+- Python 3.8+
+- Node.js and npm
+- Google Chrome (for WikiArt scraper)
+
+### 1. Preliminary Training
+
+To train the model on the WikiArt dataset:
+
+```bash
+# Create and activate virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r req.txt
+
+# Turn the venv into a kernel env
+python -m ipykernel install --user --name=painting-embed-env --display-name "Art Embedding Env"
+
+```
+Now you can run ```regression_model.ipynb``` in the root folder
+### 2. Web Application for Expert Annotation
+
+To run the full-stack annotation interface:
+
+```bash
+# Install the concurrently module
+cd webApp
+npm install
+
+# Install frontend dependencies
+cd frontend
+npm install
+
+# Return to webApp directory and start both frontend and backend
+cd ..
+npm start
+```
+
+This will start the FastAPI backend and React frontend simultaneously. The annotation interface will be available in your browser.
+
+### 3. WikiArt Scraper
+
+To scrape paintings from WikiArt:
+
+#### Load the Chrome extension
+1. Open Chrome and go to chrome://extensions/
+2. Enable "Developer mode" in the top right
+3. Click "Load unpacked" and select the extension folder
+
+#### Use the scraper
+1. Navigate to a WikiArt movement page (e.g., https://www.wikiart.org/en/paintings-by-style/romanticism)
+2. Click "Add All Artists" in the extension popup
+3. Click "Start Download Loop" to begin scraping
+
+
+## Project Status
+
+### ✓ Completed
+- [x] Create dataset by scraping 30,928 paintings and metadata from WikiArt.org
+- [x] Design and implement model architecture (BLIP-2 with three regression heads)
+- [x] Conduct preliminary training based on hard label database
+- [x] Create full-stack web application
+  - [x] FastAPI backend with model integration for forward and backward passes
+  - [x] Cache system for predictions and backwards queue
+  - [x] React frontend annotation loop
+
+### ✗ In Progress
+- [ ] User system for backend
+- [ ] Revision interface for previous annotations
+- [ ] Interactive search engine frontend
+- [ ] Contrastive learning component implementation
+- [ ] Independent expert evaluation dataset construction
+- [ ] Focus-guided adversarial image generation and testing
+- [ ] Cluster analysis and art-historical insights generation
 ## Problem Formulation
 
 Each painting is represented by an image *I* and mapped to an 18-dimensional continuous embedding vector **v** = [**m**, **g**, **f**] where:
@@ -72,86 +150,6 @@ The approach combines a model-derived responsibility map (computed from gradient
 
 The aim is to compare adversarial examples generated under the same perturbation budget using standard FGSM and PGD methods, and to evaluate whether the proposed approach produces perturbations that are less perceptible to human observers while still effectively fooling the model.
 
-## How to Run
-
-### Prerequisites
-- Python 3.8+
-- Node.js and npm
-- Google Chrome (for WikiArt scraper)
-
-### 1. Preliminary Training
-
-To train the model on the WikiArt dataset:
-
-```bash
-# Create and activate virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r req.txt
-
-# Turn the venv into a kernel env
-python -m ipykernel install --user --name=painting-embed-env --display-name "Art Embedding Env"
-
-```
-Now you can run ```regression_model.ipynb``` in the root folder
-### 2. Web Application for Expert Annotation
-
-To run the full-stack annotation interface:
-
-```bash
-# Install the concurrently module
-cd webApp
-npm install
-
-# Install frontend dependencies
-cd frontend
-npm install
-
-# Return to webApp directory and start both frontend and backend
-cd ..
-npm start
-```
-
-This will start the FastAPI backend and React frontend simultaneously. The annotation interface will be available in your browser.
-
-### 3. WikiArt Scraper
-
-To scrape paintings from WikiArt:
-
-```bash
-# Load the Chrome extension
-# 1. Open Chrome and go to chrome://extensions/
-# 2. Enable "Developer mode" in the top right
-# 3. Click "Load unpacked" and select the extension folder
-
-# Use the scraper
-# 1. Navigate to a WikiArt movement page (e.g., https://www.wikiart.org/en/paintings-by-style/romanticism)
-# 2. Click "Add All Artists" in the extension popup
-# 3. Click "Start Download Loop" to begin scraping
-```
-
-## Project Status
-
-### ✓ Completed
-- [x] Create dataset by scraping 30,928 paintings and metadata from WikiArt.org
-- [x] Design and implement model architecture (BLIP-2 with three regression heads)
-- [x] Conduct preliminary training based on hard label database
-- [x] Create full-stack web application
-  - [x] FastAPI backend with model integration for forward and backward passes
-  - [x] Cache system for predictions and backwards queue
-  - [x] React frontend annotation loop
-
-### ✗ In Progress
-- [ ] User system for backend
-- [ ] Revision interface for previous annotations
-- [ ] Interactive search engine frontend
-- [ ] Contrastive learning component implementation
-- [ ] Independent expert evaluation dataset construction
-- [ ] Focus-guided adversarial image generation and testing
-- [ ] Cluster analysis and art-historical insights generation
-
 
 ## License
 
@@ -160,7 +158,3 @@ This project is for research and academic use only.
 ## Contact
 
 Aaron Wang -  aaron-wang@uiowa.edu
-
----
-
-*This project aims to bridge computational methods and art-historical expertise to create more nuanced, interpretable representations of artistic style.*
