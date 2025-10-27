@@ -1,9 +1,5 @@
 # Continuous Embeddings of Historical Paintings via Expert-in-the-Loop Active Learning
 
-## Abstract
-
-Despite recent advances in artificial intelligence and computer vision, there is still no effective way to search for historical paintings based on nuanced stylistic or perceptual qualities. Searching for a "dynamic, colorful nineteenth-century Neoclassical painting" almost always returns irrelevant or stylistically inconsistent results. This project proposes a system for generating structured, continuous embeddings of paintings, where each artwork is represented not by discrete labels but by a set of continuous vectors encoding art movements, genres, and formal stylistic characteristics. The model is trained using BLIP-2, refined through expert-in-the-loop annotation, and evaluated through contrastive similarity judgments. The resulting representation is scalable, interpretable, and suitable for similarity-based search, clustering, and art-historical analysis.
-
 ## Introduction
 
 Encoding paintings is a central challenge in both art history and artificial intelligence. Art-historical objects rarely conform to clean categorical boundaries. Movements, genres, and stylistic sensibilities are fluid, overlapping, and historically contingent.
@@ -151,7 +147,6 @@ To scrape paintings from WikiArt:
 - [ ] User system for backend
 - [ ] Revision interface for previous annotations
 - [ ] Interactive search engine frontend
-- [ ] Visualization of embedding clusters (t-SNE/UMAP)
 - [ ] Contrastive learning component implementation
 - [ ] Independent expert evaluation dataset construction
 - [ ] Focus-guided adversarial image generation and testing
@@ -167,21 +162,13 @@ The prediction of art styles is an emerging area in machine learning. Recent tre
 - Visual similarity judgments inform embedding structure through contrastive learning
 - The embedding is explicitly designed for interpretability, not just accuracy
 
-## References
-
-Kim, D., Elgammal, A., & Mazzone, M. (2022). *Proxy learning of visual concepts of fine art paintings from styles through language models*. AAAI.
-
-Li, W. (2025). *Enhanced automated art curation using supervised modified CNN*. Scientific Reports.
-
-Menis-Mastromichalakis, O., Sofou, N., & Stamou, G. (2024). *Deep ensemble art style recognition*. arXiv.
-
 ## License
 
-[Specify your license here]
+This project is for research and academic use only.  
 
 ## Contact
 
-Aaron Wang - [Your contact information]
+Aaron Wang -  aaron-wang@uiowa.edu
 
 ---
 
