@@ -34,6 +34,9 @@ python -m ipykernel install --user --name=painting-embed-env --display-name "Art
 
 ```
 Now you can run ```regression_model.ipynb``` in the root folder
+
+Note that the sample paintings in ```paintings/``` are only a tiny portion of the overall dataset
+
 ### 2. Web Application for Expert Annotation
 
 To run the full-stack annotation interface:
