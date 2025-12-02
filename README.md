@@ -2,20 +2,11 @@
 
 ## Introduction
 
-Encoding paintings is a central challenge in both art history and artificial intelligence. Art-historical objects rarely conform to clean categorical boundaries. Movements, genres, and stylistic sensibilities are fluid, overlapping, and historically contingent.
+Encoding paintings is a central challenge in both art history and artificial intelligence. Art-historical objects rarely conform to clean categorical boundaries. Movements, genres, and stylistic sensibilities often overlap. Consider Jacques-Louis David's *Napoleon Crossing the Saint-Bernard* (1801). David is widely acknowledged as the leading French Neoclassical painter, yet this work is dramatically expressive, emotionally charged, and heroic in a manner far more aligned with Romanticism. Although primarily a portrait, it contains significant historical narrative elements. An  accurate embedding might describe it as 40% Neoclassical, 70% Romantic, 90% portrait, and 40% history painting.
 
-Consider Jacques-Louis David's *Napoleon Crossing the Saint-Bernard* (1801). David is widely acknowledged as the leading French Neoclassical painter, yet this work is dramatically expressive, emotionally charged, and heroic in a manner far more aligned with Romanticism. Similar ambiguity occurs in genre classification: although primarily a historical portrait, it adopts the rhetoric of monumental narrative painting. A simple categorical label—"Neoclassical"—obscures this complexity.
-
-Existing computational approaches typically treat art classification as a discrete labeling problem. Yet artworks often sit *between* categories, or draw simultaneously from multiple visual traditions. To represent paintings accurately, a system must acknowledge the *graded*, *overlapping*, and *continuous* nature of stylistic identity.
-
-This project seeks to operationalize this art-historical understanding in a machine learning framework. The core aim is to construct continuous stylistic embeddings, refined through expert interpretation, that can support meaningful search, analysis, and interpretation.
+This project aims to construct continuous stylistic embeddings, refined through expert interpretation, that can support meaningful search, analysis, and interpretation. Key to the project is a web application that stores correction of the model's predictions in real time.
 
 ## How to Run
-
-### Prerequisites
-- Python 3.8+
-- Node.js and npm
-- Google Chrome (for WikiArt scraper)
 
 ### 1. Preliminary Training
 
@@ -102,9 +93,7 @@ Each dimension is continuous, typically normalized to [0,1]. Unlike traditional 
 
 ## Model Architecture
 
-To more accurately capture the nuances of art-historical reality, this project represents paintings using a continuous, multi-dimensional embedding. Rather than assigning discrete labels, each painting receives a vector of scores for movements, genres, and formal attributes. For example, a work might be 0.7 Romantic, 0.4 Neoclassical, 0.3 History Painting, and 0.5 Everyday Scene. This allows the model to reflect that individual works can straddle movements, incorporate multiple genres, or exhibit intermediate stylistic qualities, producing a richer and more flexible representation than traditional categorical labels.
-
-The system attaches three regression heads to the last hidden layer of BLIP-2's Q-Former, a state-of-the-art vision-language model developed by Salesforce. BLIP-2 first encodes images using a frozen CLIP vision backbone, then maps them through a Q-Former whose outputs are typically decoded into text by a language model. Although BLIP-2 is primarily designed for text-based queries, the Q-Former produces rich visual embeddings that can also be leveraged for regression tasks.
+The model uses BLIP-2 by Salesforce as a base, which connects a frozen vision encoder to an LLM with a Q-Former. Instead of connecting the Q-Former to an LLM, this model routes its semantically rich last hidden layer to an MLP layer connected to three regression heads which correspond to movement, genre, and visual features. Decoupled regression heads permit differential weighting of the training objectives.
 
 ## Dataset
 
@@ -124,13 +113,13 @@ To support expert-in-the-loop model refinement, a full-stack application was dev
 
 To minimize latency, the system incorporates a caching mechanism with both a cache lock and a model lock, ensuring rapid prediction retrieval in the frontend while preventing training-inference collisions.
 
+## Extensions
+
 ### Complementary Contrastive Learning
 
-In addition to single-image annotation, a contrastive learning component is implemented. The expert is presented with pairs of paintings and asked to rate their stylistic similarity in terms of movement, genre, and formal characteristics. These similarity ratings are then compared with the cosine similarity of the model-predicted embedding vectors for the same pairs.
+In addition to single-image annotation, a contrastive learning component will be implemented. The expert is presented with pairs of paintings and asked to rate their stylistic similarity in terms of movement, genre, and formal characteristics. These similarity ratings are then compared with the cosine similarity of the model-predicted embedding vectors for the same pairs.
 
 A contrastive loss term encourages the embedding space to align with art-historically meaningful similarity relationships, producing clusters of semantically related artworks and enabling more interpretable visualizations and similarity-based retrieval than regression alone.
-
-## Extensions
 
 ### Search Engine Implementation
 
